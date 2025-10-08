@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Viking RPG: Völva's Voyage</title>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <div id="title-screen" class="game-screen">
+      <h1 id="game-logo">VÖLVA'S VOYAGE</h1>
+      <p class="description-text">
+        A harsh world of ice and stone awaits. Forge your destiny, warrior.
+      </p>
+      <button id="start-game-button">Start Your Journey</button>
+    </div>
+
+    <div id="char-select-screen" class="game-screen hidden">
+      <h2 class="select-header">Choose Your Path</h2>
+
+      <div id="gender-selection" class="selection-group">
+        <h3>Select Your Kin</h3>
+        <div class="choice-buttons">
+          <button class="choice-btn" data-gender="male">Male Warrior</button>
+          <button class="choice-btn" data-gender="female">
+            Female Shieldmaiden
+          </button>
+        </div>
+        <p id="gender-choice-text">Please choose a gender to continue.</p>
+      </div>
+
+      <div id="class-selection" class="selection-group hidden">
+        <h3>Choose Your Calling</h3>
+        <div class="choice-buttons"></div>
+        <p id="path-choice-text" style="margin-top: 20px; font-style: italic">
+          Select a path to see its focus.
+        </p>
+        <button id="confirm-char-button" disabled>Enter the World</button>
+      </div>
+    </div>
+
+    <div id="game-interface" class="game-screen hidden">
+      <aside id="char-sheet-container">
+        <h2>The Warrior</h2>
+
+        <div id="char-portrait">
+          <img id="char-image" src="" alt="Character Portrait" />
+        </div>
+
+        <div id="gear-slots">
+          <div class="slot head-slot">Head</div>
+          <div class="slot mainhand-slot">Main Hand</div>
+          <div class="slot chest-slot">Chest</div>
+          <div class="slot offhand-slot">Off Hand</div>
+          <div class="slot boot-slot">Boots</div>
+        </div>
+
+        <div id="health-display-container">
+          <h3>Health</h3>
+          <div id="blood-meter-outline">
+            <div id="blood-meter-fill"></div>
+          </div>
+          <p id="hp-value">100 / 100</p>
+        </div>
+        <div id="stat-display-container" style="margin-top: 30px">
+          <h3>Attributes</h3>
+          <ul id="attribute-list" style="list-style: none; padding: 0"></ul>
+        </div>
+      </aside>
+
+      <main id="main-game-center">
+        <header id="map-header">
+          <div id="day-night-cycle">
+            <div id="sun-moon-tracker"></div>
+          </div>
+          <h2 id="location-name">Landfall</h2>
+        </header>
+
+        <div id="game-map"></div>
+
+        <div id="game-console">
+          <p>What will you do?</p>
+        </div>
+      </main>
+
+      <aside id="encounter-display-container">
+        <h2>Encounter</h2>
+
+        <div id="encounter-portrait">
+          <img id="encounter-image" src="" alt="Encounter Image" />
+        </div>
+
+        <div id="encounter-details">
+          <h3 id="encounter-name">Nothing Here</h3>
+          <p id="encounter-description">
+            The wind howls across the open field.
+          </p>
+          <div id="encounter-actions"></div>
+        </div>
+      </aside>
+    </div>
+
+    <script src="main.js" type="module"></script>
+  </body>
+</html>
