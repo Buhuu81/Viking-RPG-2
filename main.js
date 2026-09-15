@@ -1,5 +1,5 @@
 /**
- * VÖLVA'S VOYAGE - Game Logic
+ * VIKING JOURNEY - Game Logic
  *
  * This script handles screen transitions, character selection, map generation,
  * player movement, and the visually updated 24-hour Day/Night cycle.
