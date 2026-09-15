@@ -3,95 +3,135 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>VIKINGS JOURNEY</title>
+    <title>VIKING JOURNEY</title>
     <link rel="stylesheet" href="/src/style.css" />
   </head>
   <body>
+    <!-- Title Screen -->
     <div id="title-screen" class="game-screen">
-      <h1 id="game-logo">VIKINGS JOURNEY</h1>
-      <p class="description-text">
-        A harsh world of ice and stone awaits. Forge your destiny, warrior.
-      </p>
-      <div style="display: flex; gap: 10px;">
-        <button id="start-game-button">New Journey</button>
-        <button id="continue-game-button" class="hidden">Continue Journey</button>
-      </div>
-    </div>
-
-    <div id="char-select-screen" class="game-screen hidden">
-      <h2 class="select-header">Choose Your Path</h2>
-
-      <div id="gender-selection" class="selection-group">
-        <h3>Select Your Kin</h3>
-        <div class="choice-buttons">
-          <button class="choice-btn" data-gender="male">Male Warrior</button>
-          <button class="choice-btn" data-gender="female">Female Shieldmaiden</button>
-        </div>
-        <p id="gender-choice-text">Please choose a gender to continue.</p>
-      </div>
-
-      <div id="class-selection" class="selection-group hidden">
-        <h3>Choose Your Calling</h3>
-        <div class="choice-buttons"></div>
-        <p id="path-choice-text" style="margin-top: 16px; font-style: italic">
-          Select a path to see its focus.
+      <div class="parchment-frame title-box">
+        <h1 id="game-logo">VIKING JOURNEY</h1>
+        <p class="flavor-text">
+          Cold winds blow across the fjord. An oath was sworn, and blood will answer.
         </p>
-        <button id="confirm-char-button" disabled style="margin-top: 16px;">Enter the World</button>
+        <div class="screen-actions">
+          <button id="start-game-button" class="rune-btn">New Saga</button>
+          <button id="continue-game-button" class="rune-btn hidden">Continue Journey</button>
+        </div>
       </div>
     </div>
 
+    <!-- Character Selection Screen -->
+    <div id="char-select-screen" class="game-screen hidden">
+      <div class="parchment-frame select-box">
+        <h2>Forge Your Warrior</h2>
+
+        <div id="gender-selection" class="selection-group">
+          <h3>Choose Kin</h3>
+          <div class="choice-row">
+            <button class="choice-btn" data-gender="male">Brother-in-Arms</button>
+            <button class="choice-btn" data-gender="female">Shieldmaiden</button>
+          </div>
+          <p id="gender-choice-text" class="subtext">Select your kindred to proceed.</p>
+        </div>
+
+        <div id="class-selection" class="selection-group hidden">
+          <h3>Choose Calling</h3>
+          <div class="choice-row" id="class-buttons-container"></div>
+          <p id="path-choice-text" class="flavor-text"></p>
+          <button id="confirm-char-button" class="rune-btn" disabled>Carve Destiny</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Active Game Interface -->
     <div id="game-interface" class="game-screen hidden">
-      <aside id="char-sheet-container">
-        <h2 id="char-name-display">The Warrior</h2>
-        <p id="char-class-display" style="color: var(--accent); font-size: 0.9rem;"></p>
-
-        <div id="gear-slots">
-          <div class="slot" id="slot-head">Head: Empty</div>
-          <div class="slot" id="slot-chest">Chest: Rags</div>
-          <div class="slot" id="slot-mainhand">Weapon: Seax</div>
-          <div class="slot" id="slot-offhand">Offhand: Empty</div>
-          <div class="slot" id="slot-boots">Boots: Worn Wraps</div>
+      <!-- Left: Character & Inventory Doll -->
+      <aside id="char-sheet-panel" class="panel">
+        <div class="panel-header">
+          <h2 id="char-name-display">The Warrior</h2>
+          <span id="char-class-badge" class="badge">Huscarl</span>
         </div>
 
-        <div>
-          <h3>Health</h3>
-          <div class="meter-box"><div id="blood-meter-fill" class="meter-fill meter-hp" style="width: 100%;"></div></div>
-          <p id="hp-value" style="font-size: 0.85rem; text-align: right;">100 / 100</p>
+        <div class="vitals-group">
+          <div class="meter-wrapper">
+            <div class="meter-label">
+              <span>Health</span>
+              <span id="hp-text">100 / 100</span>
+            </div>
+            <div class="meter-track"><div id="hp-meter-bar" class="meter-bar hp-bar"></div></div>
+          </div>
+
+          <div class="meter-wrapper">
+            <div class="meter-label">
+              <span>Stamina</span>
+              <span id="stamina-text">100 / 100</span>
+            </div>
+            <div class="meter-track"><div id="stamina-meter-bar" class="meter-bar stamina-bar"></div></div>
+          </div>
+
+          <div class="meter-wrapper">
+            <div class="meter-label">
+              <span>Exhaustion</span>
+              <span id="exhaustion-text">0%</span>
+            </div>
+            <div class="meter-track"><div id="exhaustion-meter-bar" class="meter-bar exhaustion-bar"></div></div>
+          </div>
         </div>
 
-        <div>
-          <h3>Stamina / Energy</h3>
-          <div class="meter-box"><div id="stamina-meter-fill" class="meter-fill meter-stamina" style="width: 100%;"></div></div>
-          <p id="stamina-value" style="font-size: 0.85rem; text-align: right;">100 / 100</p>
+        <h3>Equipped Arms</h3>
+        <div id="gear-doll" class="doll-grid">
+          <div class="doll-slot" id="slot-head"><small>Head</small><span>Empty</span></div>
+          <div class="doll-slot" id="slot-mainhand"><small>Main Hand</small><span>Iron Seax</span></div>
+          <div class="doll-slot" id="slot-chest"><small>Chest</small><span>Boiled Leather</span></div>
+          <div class="doll-slot" id="slot-offhand"><small>Off Hand</small><span>Wooden Shield</span></div>
+          <div class="doll-slot" id="slot-boots"><small>Boots</small><span>Fur Wraps</span></div>
         </div>
 
-        <div id="stat-display-container">
-          <h3>Attributes</h3>
-          <ul id="attribute-list" style="list-style: none; padding: 0; font-size: 0.9rem;"></ul>
-        </div>
-        <button id="manual-save-button" style="margin-top: auto;">Save Progress</button>
+        <h3>Attributes</h3>
+        <div id="attribute-list" class="stat-pill-container"></div>
+
+        <button id="manual-save-btn" class="rune-btn mini-btn">Save Saga</button>
       </aside>
 
-      <main id="main-game-center">
-        <header id="map-header">
-          <div id="sun-moon-tracker">☀️</div>
-          <div id="day-night-cycle"></div>
-          <h2 id="location-name" style="font-size: 1.1rem; margin-top: 6px;">Landfall</h2>
+      <!-- Center: Map, Cycle Tracker, Log -->
+      <main id="game-viewport">
+        <header id="world-header">
+          <div class="cycle-container">
+            <div id="sun-moon-tracker">☀️</div>
+            <div id="day-cycle-bar" class="time-bar"></div>
+            <div id="night-cycle-bar" class="time-bar"></div>
+          </div>
+          <div class="location-banner">
+            <span id="location-name">Landfall</span>
+            <span id="cycle-phase-label" class="phase-tag">Morning</span>
+          </div>
         </header>
 
-        <div id="game-map"></div>
+        <div id="game-map-container">
+          <div id="game-map"></div>
+        </div>
 
         <div id="game-console">
-          <p>> Welcome to the northern reaches.</p>
+          <div id="console-output"></div>
         </div>
       </main>
 
-      <aside id="encounter-display-container">
-        <h2>Encounter</h2>
-        <div id="encounter-details">
-          <h3 id="encounter-name">Nothing Here</h3>
-          <p id="encounter-description">The wind howls across the open ground.</p>
-          <div id="encounter-actions" style="display: flex; flex-direction: column; gap: 8px; margin-top: 12px;"></div>
+      <!-- Right: Encounter & Action Context -->
+      <aside id="encounter-panel" class="panel">
+        <div class="panel-header">
+          <h2>Surroundings</h2>
+        </div>
+
+        <div id="encounter-card" class="encounter-box">
+          <div id="encounter-icon" class="encounter-glyph">🏕️</div>
+          <h3 id="encounter-title">Open Wilderness</h3>
+          <p id="encounter-desc">The biting wind sweeps across frozen rocks and brush.</p>
+        </div>
+
+        <div class="action-section">
+          <h3>Decisions</h3>
+          <div id="encounter-actions" class="action-button-list"></div>
         </div>
       </aside>
     </div>

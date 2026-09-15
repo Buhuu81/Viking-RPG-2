@@ -1,70 +1,108 @@
 /**
- * VIKING JOURNEY - Core Engine
+ * VIKING JOURNEY - Master Game Engine
+ * Features: Restored Day/Night segmented bar, exhaustion mechanics, 
+ * dynamic class-based gear parsing, and robust localStorage persistence.
  */
 
-const SAVE_KEY = 'viking_journey_save_v1';
+const STORAGE_VERSION_KEY = 'viking_journey_save_v2';
 const MAP_WIDTH = 20;
 const MAP_HEIGHT = 20;
 
-// Fallback procedural visual tiles
-const createPattern = (bg, border) =>
-  `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48"><rect width="48" height="48" fill="${bg}" stroke="${border}" stroke-width="2"/></svg>`;
+// Procedural SVG fallback textures with Norse color palette
+const createTileSvg = (bg, stroke) =>
+  `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="44" height="44"><rect width="44" height="44" fill="${bg}" stroke="${stroke}" stroke-width="2"/></svg>`;
 
 const TILE_TYPES = {
-  WALL_CASTLE: { id: 'wall_castle', symbol: '🏰', walkable: false, color: '#3b4252', bg: createPattern('%233b4252', '%232e3440') },
-  WALL_HOUSE: { id: 'wall_house', symbol: '🏠', walkable: false, color: '#4c566a', bg: createPattern('%235e4b3c', '%233e2f23') },
-  WALL_CAVE: { id: 'wall_cave', symbol: '🪨', walkable: false, color: '#2e3440', bg: createPattern('%23282c34', '%231e222a') },
-  WALL_ROCK: { id: 'wall_rock', symbol: '⛰️', walkable: false, color: '#2e3440', bg: createPattern('%23373e4d', '%23242933') },
-  LAVA: { id: 'lava', symbol: '🔥', walkable: false, color: '#bf616a', bg: createPattern('%23bf616a', '%23d08770') },
-  WATER_LAKE: { id: 'water_lake', symbol: '💧', walkable: false, color: '#5e81ac', bg: createPattern('%23434c5e', '%235e81ac') },
-  GROUND_FIELD: { id: 'ground_field', symbol: '', walkable: true, color: '#2f3b2f', bg: createPattern('%232e3b2e', '%23394639') },
-  GROUND_STONE: { id: 'ground_stone', symbol: '', walkable: true, color: '#434c5e', bg: createPattern('%233b4252', '%234c566a') },
-  DOORWAY_HOUSE: { id: 'door_house', symbol: '🚪', walkable: true, action: 'travel', bg: createPattern('%235e4b3c', '%23a3be8c') },
-  DOORWAY_CAVE: { id: 'door_cave', symbol: '🕳️', walkable: true, action: 'travel', bg: createPattern('%231e222a', '%23ebcb8b') }
+  WALL_ROCK: { id: 'wall_rock', symbol: '⛰️', walkable: false, bg: createTileSvg('%2320252f', '%23141820') },
+  GROUND_FIELD: { id: 'ground_field', symbol: '', walkable: true, bg: createTileSvg('%23232c25', '%232e3b30') },
+  GROUND_STONE: { id: 'ground_stone', symbol: '', walkable: true, bg: createTileSvg('%23333a47', '%23262b35') },
+  DOORWAY_HOUSE: { id: 'door_house', symbol: '🚪', walkable: true, action: 'travel', bg: createTileSvg('%23443322', '%23c9933b') },
+  DOORWAY_CAVE: { id: 'door_cave', symbol: '🕳️', walkable: true, action: 'travel', bg: createTileSvg('%23161a22', '%235e81ac') }
 };
 
 const ENCOUNTER_TYPES = [
-  { type: 'enemy', name: 'Draugr', description: 'A restless undead warrior.', challenge: 1 },
-  { type: 'treasure', name: 'Gilded Chest', description: 'A chest containing ancient iron and gold.', challenge: 0 },
-  { type: 'npc', name: 'Wandering Skald', description: 'A traveler sharing news from the south.', challenge: 0 }
+  { type: 'enemy', name: 'Draugr Sentry', description: 'A withered undead warrior clad in rusted chainmail.', challenge: 1, symbol: '💀' },
+  { type: 'treasure', name: 'Buried Chest', description: 'An iron-banded chest half-swallowed by ice.', challenge: 0, symbol: '📦' },
+  { type: 'npc', name: 'Lost Skald', description: 'A singer of verses warming his hands by embers.', challenge: 0, symbol: '🧙' }
 ];
 
 const GAME_PATHS = [
-  { id: 'huscarl', name: 'Huscarl', focus: 'Strength', desc: 'A shield-bearer specializing in brute force and heavy armor.' },
-  { id: 'volva', name: 'Völva', focus: 'Intellect', desc: 'A weaver of Seiðr runes manipulating energy and warding.' },
-  { id: 'skirmisher', name: 'Skirmisher', focus: 'Agility', desc: 'A swift tracker striking targets with quick strikes.' }
+  { id: 'huscarl', name: 'Huscarl', focus: 'Strength & Warding', desc: 'Heavy shield-bearer who thrives on front-line attrition.' },
+  { id: 'volva', name: 'Völva', focus: 'Intellect & Seiðr', desc: 'Weaver of runic magic manipulating life and energy.' },
+  { id: 'skirmisher', name: 'Skirmisher', focus: 'Agility & Lethality', desc: 'Fast tracker dealing precision strikes and evasion.' }
 ];
 
-// Universal Item System with Class Dynamic Stat Resolution
-const ITEM_DEFINITIONS = {
+// Universal Gear Table: Dynamic stat computation per active calling
+const GEAR_REGISTRY = {
   seax: {
+    id: 'seax',
     name: 'Iron Seax',
     slot: 'mainhand',
-    getStats: (path) => {
-      if (path === 'huscarl') return { attack: 8, staminaMax: 10 };
-      if (path === 'volva') return { attack: 4, focusRegen: 2 };
-      return { attack: 6, critRate: 5 }; // skirmisher
+    resolveStats: (path) => {
+      if (path === 'huscarl') return { attack: 7, block: 4 };
+      if (path === 'volva') return { attack: 3, runePower: 6 };
+      return { attack: 6, critRate: 6 }; // Skirmisher
     }
   },
-  tunic: {
+  leather: {
+    id: 'leather',
     name: 'Boiled Leather',
     slot: 'chest',
-    getStats: (path) => {
-      if (path === 'huscarl') return { defense: 8 };
-      if (path === 'volva') return { defense: 4, manaMax: 20 };
-      return { defense: 6, evasion: 4 };
+    resolveStats: (path) => {
+      if (path === 'huscarl') return { defense: 8, poise: 5 };
+      if (path === 'volva') return { defense: 4, manaMax: 25 };
+      return { defense: 6, evasion: 5 }; // Skirmisher
     }
+  },
+  shield: {
+    id: 'shield',
+    name: 'Wooden Shield',
+    slot: 'offhand',
+    resolveStats: (path) => {
+      if (path === 'huscarl') return { block: 10, hpMax: 20 };
+      if (path === 'volva') return { block: 4, ward: 8 };
+      return { block: 5, parry: 5 };
+    }
+  },
+  wraps: {
+    id: 'wraps',
+    name: 'Fur Wraps',
+    slot: 'boots',
+    resolveStats: () => ({ moveStaminaCost: -1 })
   }
 };
 
-const DAY_CYCLE = [
-  { start: 6, end: 11, emoji: '🌄', id: 'Morning', color: '#d08770', danger: false },
-  { start: 12, end: 17, emoji: '☀️', id: 'Day', color: '#ebcb8b', danger: false },
-  { start: 18, end: 21, emoji: '🌥️', id: 'Evening', color: '#b48ead', danger: false },
-  { start: 22, end: 23, emoji: '🌙', id: 'Dusk', color: '#4c566a', danger: true },
-  { start: 0, end: 5, emoji: '🌑', id: 'Dead of Night', color: '#2e3440', danger: true }
+const DAY_HOURS = [
+  { hour: 6, label: 'Dawn', color: '#8a5c36' },
+  { hour: 7, label: 'Morning', color: '#b87c42' },
+  { hour: 8, label: 'Morning', color: '#c9933b' },
+  { hour: 9, label: 'Morning', color: '#d8aa53' },
+  { hour: 10, label: 'Forenoon', color: '#e5bf6c' },
+  { hour: 11, label: 'Midday', color: '#ecd07f' },
+  { hour: 12, label: 'High Sun', color: '#ffea9f' },
+  { hour: 13, label: 'Afternoon', color: '#ecd07f' },
+  { hour: 14, label: 'Afternoon', color: '#e5bf6c' },
+  { hour: 15, label: 'Afternoon', color: '#d8aa53' },
+  { hour: 16, label: 'Afternoon', color: '#c9933b' },
+  { hour: 17, label: 'Dusk', color: '#b86b42' },
+  { hour: 18, label: 'Twilight', color: '#91534b' },
+  { hour: 19, label: 'Twilight', color: '#684058' },
+  { hour: 20, label: 'Evening', color: '#453556' },
+  { hour: 21, label: 'Nightfall', color: '#2d2d4a' }
 ];
 
+const NIGHT_HOURS = [
+  { hour: 22, label: 'Night', color: '#1a1f33' },
+  { hour: 23, label: 'Dead of Night', color: '#121626' },
+  { hour: 0, label: 'Midnight', color: '#0b0e1a' },
+  { hour: 1, label: 'Witching Hour', color: '#0e1120' },
+  { hour: 2, label: 'Deep Night', color: '#121626' },
+  { hour: 3, label: 'Wolf Hour', color: '#171c2f' },
+  { hour: 4, label: 'False Dawn', color: '#22233b' },
+  { hour: 5, label: 'First Light', color: '#4d373b' }
+];
+
+// Master State
 const gameState = {
   screen: 'title',
   currentLocation: 'Landfall',
@@ -82,73 +120,139 @@ const gameState = {
     exhaustion: 0,
     gear: {
       head: null,
-      chest: 'tunic',
+      chest: 'leather',
       mainhand: 'seax',
-      offhand: null,
-      boots: null
+      offhand: 'shield',
+      boots: 'wraps'
     },
-    stats: { strength: 10, intellect: 10, agility: 10 }
+    stats: { strength: 12, intellect: 10, agility: 11 }
   }
 };
 
-// --- DOM REFERENCES ---
+// DOM Handles
 const screens = {
   title: document.getElementById('title-screen'),
   charSelect: document.getElementById('char-select-screen'),
   gameInterface: document.getElementById('game-interface')
 };
-const gameMapDiv = document.getElementById('game-map');
-const gameConsole = document.getElementById('game-console');
-const dayNightCycleDiv = document.getElementById('day-night-cycle');
+
+const dayCycleBar = document.getElementById('day-cycle-bar');
+const nightCycleBar = document.getElementById('night-cycle-bar');
 const sunMoonTracker = document.getElementById('sun-moon-tracker');
 const locationName = document.getElementById('location-name');
-const continueButton = document.getElementById('continue-game-button');
+const cyclePhaseLabel = document.getElementById('cycle-phase-label');
+const consoleOutput = document.getElementById('console-output');
+const gameMap = document.getElementById('game-map');
 
-// --- STORAGE SYSTEM ---
-function saveGame() {
-  localStorage.setItem(SAVE_KEY, JSON.stringify(gameState));
-  logToConsole('Journey progress recorded in the runes (Saved).');
+// --- INITIAL BUILD OF TIME BARS ---
+function buildTimeSegments() {
+  dayCycleBar.innerHTML = '';
+  nightCycleBar.innerHTML = '';
+
+  DAY_HOURS.forEach(entry => {
+    const seg = document.createElement('div');
+    seg.classList.add('hour-segment');
+    seg.dataset.hour = entry.hour;
+    seg.style.backgroundColor = entry.color;
+    seg.title = `${entry.hour}:00 - ${entry.label}`;
+    dayCycleBar.appendChild(seg);
+  });
+
+  NIGHT_HOURS.forEach(entry => {
+    const seg = document.createElement('div');
+    seg.classList.add('hour-segment');
+    seg.dataset.hour = entry.hour;
+    seg.style.backgroundColor = entry.color;
+    seg.title = `${entry.hour}:00 - ${entry.label}`;
+    nightCycleBar.appendChild(seg);
+  });
 }
 
-function loadSaveData() {
-  const raw = localStorage.getItem(SAVE_KEY);
-  if (!raw) return null;
-  try {
-    return JSON.parse(raw);
-  } catch (e) {
-    return null;
-  }
-}
-
-// --- CONSOLE & UTILITY ---
-function logToConsole(message) {
-  const p = document.createElement('p');
-  p.textContent = `> ${message}`;
-  gameConsole.prepend(p);
-  while (gameConsole.children.length > 30) {
-    gameConsole.removeChild(gameConsole.lastChild);
-  }
-}
-
-function getRandomInt(min, max) {
-  return Math.floor(Math.random() * (max - min + 1)) + min;
-}
-
-function getCurrentPhase() {
-  const { hour } = gameState.time;
-  return DAY_CYCLE.find(phase => {
-    if (phase.start <= phase.end) {
-      return hour >= phase.start && hour <= phase.end;
-    }
-    return hour >= phase.start || hour <= phase.end;
-  }) || DAY_CYCLE[0];
-}
-
-// --- RENDERING & TIME ---
 function updateTimeTracker() {
-  const phase = getCurrentPhase();
-  sunMoonTracker.textContent = phase.emoji;
-  locationName.textContent = `${gameState.currentLocation} — ${phase.id} (Day ${gameState.time.day}, ${String(gameState.time.hour).padStart(2, '0')}:00)`;
+  const { hour, day } = gameState.time;
+  const isNight = hour >= 22 || hour <= 5;
+  const activeHourObj = [...DAY_HOURS, ...NIGHT_HOURS].find(h => h.hour === hour);
+  const phaseName = activeHourObj ? activeHourObj.label : (isNight ? 'Night' : 'Day');
+
+  cyclePhaseLabel.textContent = `${phaseName} • Day ${day} (${String(hour).padStart(2, '0')}:00)`;
+  locationName.textContent = gameState.currentLocation;
+
+  // Position Sun/Moon marker along active timeline bar
+  const activeBar = isNight ? nightCycleBar : dayCycleBar;
+  const inactiveBar = isNight ? dayCycleBar : nightCycleBar;
+  activeBar.style.opacity = '1';
+  inactiveBar.style.opacity = '0.4';
+
+  const segments = Array.from(activeBar.children);
+  const currentSeg = segments.find(s => parseInt(s.dataset.hour, 10) === hour);
+
+  if (currentSeg) {
+    const barRect = activeBar.getBoundingClientRect();
+    const segRect = currentSeg.getBoundingClientRect();
+    const parentRect = activeBar.parentElement.getBoundingClientRect();
+
+    const relativeCenter = (segRect.left - parentRect.left) + (segRect.width / 2);
+    sunMoonTracker.style.left = `${relativeCenter}px`;
+    sunMoonTracker.textContent = isNight ? '🌙' : '☀️';
+  }
+}
+
+function logEvent(msg) {
+  const p = document.createElement('p');
+  p.textContent = `> ${msg}`;
+  consoleOutput.prepend(p);
+  while (consoleOutput.children.length > 25) {
+    consoleOutput.removeChild(consoleOutput.lastChild);
+  }
+}
+
+function saveGame() {
+  localStorage.setItem(STORAGE_VERSION_KEY, JSON.stringify(gameState));
+  logEvent('Progress etched into the stone (Game Saved).');
+}
+
+function loadSavedGame() {
+  const raw = localStorage.getItem(STORAGE_VERSION_KEY);
+  if (!raw) return null;
+  try { return JSON.parse(raw); } catch (e) { return null; }
+}
+
+// --- PLAYER VITALS & ATTRIBUTES ---
+function updateVitals() {
+  const p = gameState.player;
+  document.getElementById('hp-text').textContent = `${Math.round(p.currentHP)} / ${p.maxHP}`;
+  document.getElementById('hp-meter-bar').style.width = `${Math.max(0, (p.currentHP / p.maxHP) * 100)}%`;
+
+  document.getElementById('stamina-text').textContent = `${Math.round(p.stamina)} / ${p.maxStamina}`;
+  document.getElementById('stamina-meter-bar').style.width = `${Math.max(0, (p.stamina / p.maxStamina) * 100)}%`;
+
+  document.getElementById('exhaustion-text').textContent = `${Math.round(p.exhaustion)}%`;
+  document.getElementById('exhaustion-meter-bar').style.width = `${p.exhaustion}%`;
+
+  // Render Attributes
+  const attrBox = document.getElementById('attribute-list');
+  attrBox.innerHTML = '';
+  Object.entries(p.stats).forEach(([stat, val]) => {
+    const pill = document.createElement('div');
+    pill.className = 'stat-pill';
+    pill.innerHTML = `<span>${stat.toUpperCase()}</span><strong>${val}</strong>`;
+    attrBox.appendChild(pill);
+  });
+
+  // Gear Doll dynamic text
+  Object.entries(p.gear).forEach(([slot, itemId]) => {
+    const slotEl = document.querySelector(`#slot-${slot} span`);
+    if (slotEl) {
+      if (itemId && GEAR_REGISTRY[itemId]) {
+        const item = GEAR_REGISTRY[itemId];
+        const stats = item.resolveStats(p.path);
+        const statLabel = Object.entries(stats).map(([k, v]) => `+${v} ${k}`).join(', ');
+        slotEl.textContent = `${item.name} (${statLabel})`;
+      } else {
+        slotEl.textContent = 'Empty';
+      }
+    }
+  });
 }
 
 function advanceTime(hours = 1) {
@@ -158,116 +262,103 @@ function advanceTime(hours = 1) {
     gameState.time.day += 1;
   }
 
-  // Energy & Exhaustion step
-  gameState.player.exhaustion = Math.min(100, gameState.player.exhaustion + hours * 2);
-  gameState.player.stamina = Math.max(0, gameState.player.stamina - hours * 3);
+  // Stamina and exhaustion progression
+  const p = gameState.player;
+  const exhaustionMultiplier = 1 + (p.exhaustion / 100);
+  p.stamina = Math.max(0, p.stamina - (hours * 2 * exhaustionMultiplier));
+  p.exhaustion = Math.min(100, p.exhaustion + (hours * 1.5));
+
+  if (p.stamina === 0) {
+    p.currentHP = Math.max(1, p.currentHP - (hours * 3));
+    logEvent('You are exhausted and starving! Health is withering away.');
+  }
 
   updateTimeTracker();
-  updateVitalsDisplay();
+  updateVitals();
   saveGame();
 }
 
-function updateVitalsDisplay() {
-  const { currentHP, maxHP, stamina, maxStamina } = gameState.player;
-  document.getElementById('blood-meter-fill').style.width = `${(currentHP / maxHP) * 100}%`;
-  document.getElementById('hp-value').textContent = `${Math.round(currentHP)} / ${maxHP}`;
-
-  document.getElementById('stamina-meter-fill').style.width = `${(stamina / maxStamina) * 100}%`;
-  document.getElementById('stamina-value').textContent = `${Math.round(stamina)} / ${maxStamina}`;
-
-  const attrList = document.getElementById('attribute-list');
-  attrList.innerHTML = '';
-  Object.entries(gameState.player.stats).forEach(([stat, val]) => {
-    const li = document.createElement('li');
-    li.textContent = `${stat.toUpperCase()}: ${val}`;
-    attrList.appendChild(li);
-  });
-}
-
 // --- MAP & PATHFINDING ---
-class TileData {
-  constructor(x, y, type, encounter = null) {
-    this.x = x;
-    this.y = y;
-    this.type = type;
-    this.currentEncounter = encounter;
-    this.visited = false;
-  }
-}
-
-function buildMap(name = 'Landfall') {
+function generateMap(name = 'Landfall') {
   gameState.currentLocation = name;
   const map = [];
+
   for (let y = 0; y < MAP_HEIGHT; y++) {
     map[y] = [];
     for (let x = 0; x < MAP_WIDTH; x++) {
-      map[y][x] = new TileData(x, y, TILE_TYPES.WALL_ROCK);
+      map[y][x] = {
+        x, y,
+        type: TILE_TYPES.WALL_ROCK,
+        encounter: null,
+        visited: false
+      };
     }
   }
 
-  // Random walk path carver
+  // Carve walkable path
   let curX = Math.floor(MAP_WIDTH / 2);
   let curY = Math.floor(MAP_HEIGHT / 2);
   const steps = MAP_WIDTH * MAP_HEIGHT * 0.35;
-  const pathTiles = [];
+  const carvedTiles = [];
 
   for (let i = 0; i < steps; i++) {
     map[curY][curX].type = TILE_TYPES.GROUND_FIELD;
-    pathTiles.push({ x: curX, y: curY });
+    carvedTiles.push({ x: curX, y: curY });
 
-    const dir = [{ x: 0, y: -1 }, { x: 0, y: 1 }, { x: -1, y: 0 }, { x: 1, y: 0 }][getRandomInt(0, 3)];
+    const dir = [{ x: 0, y: -1 }, { x: 0, y: 1 }, { x: -1, y: 0 }, { x: 1, y: 0 }][Math.floor(Math.random() * 4)];
     curX = Math.max(1, Math.min(MAP_WIDTH - 2, curX + dir.x));
     curY = Math.max(1, Math.min(MAP_HEIGHT - 2, curY + dir.y));
   }
 
-  // Place doorway & encounters
-  pathTiles.forEach(({ x, y }) => {
-    if (Math.random() < 0.04) {
-      map[y][x].currentEncounter = ENCOUNTER_TYPES[getRandomInt(0, ENCOUNTER_TYPES.length - 1)];
+  // Scatter encounters
+  carvedTiles.forEach(({ x, y }) => {
+    if (Math.random() < 0.05) {
+      map[y][x].encounter = ENCOUNTER_TYPES[Math.floor(Math.random() * ENCOUNTER_TYPES.length)];
     }
   });
 
-  const lastTile = pathTiles[pathTiles.length - 1];
-  map[lastTile.y][lastTile.x].type = TILE_TYPES.DOORWAY_HOUSE;
-  map[lastTile.y][lastTile.x].currentEncounter = null;
+  // End doorway
+  const last = carvedTiles[carvedTiles.length - 1];
+  map[last.y][last.x].type = TILE_TYPES.DOORWAY_HOUSE;
+  map[last.y][last.x].encounter = null;
 
   gameState.currentMap = map;
-  gameState.playerPos = { x: pathTiles[0].x, y: pathTiles[0].y };
-  gameState.currentMap[pathTiles[0].y][pathTiles[0].x].visited = true;
+  gameState.playerPos = { x: carvedTiles[0].x, y: carvedTiles[0].y };
+  gameState.currentMap[carvedTiles[0].y][carvedTiles[0].x].visited = true;
 }
 
 function renderMap() {
-  gameMapDiv.innerHTML = '';
+  gameMap.innerHTML = '';
   const { x: px, y: py } = gameState.playerPos;
 
   for (let y = 0; y < MAP_HEIGHT; y++) {
     for (let x = 0; x < MAP_WIDTH; x++) {
       const tile = gameState.currentMap[y][x];
-      const el = document.createElement('div');
-      el.classList.add('tile');
-      el.style.backgroundImage = `url("${tile.type.bg}")`;
+      const cell = document.createElement('div');
+      cell.className = 'tile';
+      cell.style.backgroundImage = `url("${tile.type.bg}")`;
 
-      if (x === px && y === py) el.classList.add('player');
-      if (tile.visited) el.classList.add('visited');
+      if (x === px && y === py) cell.classList.add('player');
+      if (tile.visited) cell.classList.add('visited');
 
       const isAdjacent = Math.abs(x - px) + Math.abs(y - py) === 1;
       if (isAdjacent && tile.type.walkable) {
-        el.classList.add('can-move');
-        el.addEventListener('click', () => movePlayer(x, y));
+        cell.classList.add('can-move');
+        cell.addEventListener('click', () => stepTo(x, y));
       }
 
-      if (tile.currentEncounter) {
-        el.textContent = tile.currentEncounter.type === 'enemy' ? '💀' : '📦';
+      if (tile.encounter) {
+        cell.textContent = tile.encounter.symbol;
       } else if (tile.type.symbol) {
-        el.textContent = tile.type.symbol;
+        cell.textContent = tile.type.symbol;
       }
 
-      gameMapDiv.appendChild(el);
+      gameMap.appendChild(cell);
     }
   }
 }
 
-function movePlayer(nx, ny) {
+function stepTo(nx, ny) {
   const tile = gameState.currentMap[ny][nx];
   if (!tile.type.walkable) return;
 
@@ -275,136 +366,151 @@ function movePlayer(nx, ny) {
   gameState.playerPos = { x: nx, y: ny };
   tile.visited = true;
   renderMap();
-  inspectCurrentTile(tile);
+  inspectTile(tile);
 }
 
-function inspectCurrentTile(tile) {
-  const encName = document.getElementById('encounter-name');
-  const encDesc = document.getElementById('encounter-description');
-  const encActions = document.getElementById('encounter-actions');
-  encActions.innerHTML = '';
+function inspectTile(tile) {
+  const titleEl = document.getElementById('encounter-title');
+  const descEl = document.getElementById('encounter-desc');
+  const iconEl = document.getElementById('encounter-icon');
+  const actionsEl = document.getElementById('encounter-actions');
+  actionsEl.innerHTML = '';
 
-  if (tile.currentEncounter) {
-    const enc = tile.currentEncounter;
-    const isNight = getCurrentPhase().danger;
-    encName.textContent = enc.name + (isNight && enc.type === 'enemy' ? ' (Frenzied by Night)' : '');
-    encDesc.textContent = enc.description;
+  if (tile.encounter) {
+    const enc = tile.encounter;
+    const isNight = gameState.time.hour >= 22 || gameState.time.hour <= 5;
+    iconEl.textContent = enc.symbol;
+    titleEl.textContent = enc.name + (isNight && enc.type === 'enemy' ? ' [Frenzied]' : '');
+    descEl.textContent = enc.description;
 
-    const btn = document.createElement('button');
-    btn.textContent = `Engage ${enc.name}`;
-    btn.onclick = () => {
-      logToConsole(`You interact with ${enc.name}.`);
-      tile.currentEncounter = null;
+    const actBtn = document.createElement('button');
+    actBtn.className = 'rune-btn';
+    actBtn.textContent = `Interact with ${enc.name}`;
+    actBtn.onclick = () => {
+      logEvent(`You resolved the encounter with ${enc.name}.`);
+      tile.encounter = null;
       renderMap();
-      inspectCurrentTile(tile);
+      inspectTile(tile);
     };
-    encActions.appendChild(btn);
+    actionsEl.appendChild(actBtn);
   } else if (tile.type.action === 'travel') {
-    encName.textContent = 'Threshold';
-    encDesc.textContent = 'A weathered portal leads into another quarter.';
-    const btn = document.createElement('button');
-    btn.textContent = 'Step Through';
-    btn.onclick = () => {
-      buildMap(gameState.currentLocation === 'Landfall' ? "Trader's Stead" : 'Landfall');
+    iconEl.textContent = '🚪';
+    titleEl.textContent = 'Longhouse Threshold';
+    descEl.textContent = 'A carved wooden entryway leading to an interior hall.';
+
+    const enterBtn = document.createElement('button');
+    enterBtn.className = 'rune-btn';
+    enterBtn.textContent = 'Enter Threshold';
+    enterBtn.onclick = () => {
+      const nextArea = gameState.currentLocation === 'Landfall' ? 'Chieftain Longhouse' : 'Landfall';
+      generateMap(nextArea);
       renderMap();
+      logEvent(`You passed through the doorway into ${nextArea}.`);
+      updateTimeTracker();
     };
-    encActions.appendChild(btn);
+    actionsEl.appendChild(enterBtn);
   } else {
-    encName.textContent = 'Wilderness';
-    encDesc.textContent = 'Cold wind cuts through your furs. No immediate danger.';
+    iconEl.textContent = '🏕️';
+    titleEl.textContent = 'Open Wilderness';
+    descEl.textContent = 'Rough terrain stretches in every direction. Safe to set camp.';
   }
 
-  // Rest option
+  // Rest button
   const restBtn = document.createElement('button');
-  restBtn.textContent = 'Rest & Recover (6 Hours)';
-  restBtn.onclick = restPlayer;
-  encActions.appendChild(restBtn);
+  restBtn.className = 'rune-btn';
+  restBtn.textContent = 'Make Camp & Rest (6h)';
+  restBtn.onclick = () => restPlayer();
+  actionsEl.appendChild(restBtn);
 }
 
 function restPlayer() {
-  const isNight = getCurrentPhase().danger;
-  logToConsole('You make camp and rest your eyes...');
-  if (isNight && Math.random() < 0.25) {
-    logToConsole('Prowlers strike while you sleep! You awake to cold steel.');
-    gameState.player.currentHP = Math.max(1, gameState.player.currentHP - 20);
+  const hour = gameState.time.hour;
+  const isNight = hour >= 22 || hour <= 5;
+  logEvent('You build a small fire and rest...');
+
+  if (isNight && Math.random() < 0.3) {
+    logEvent('A nocturnal predator stalks into camp! Rest interrupted.');
+    gameState.player.currentHP = Math.max(5, gameState.player.currentHP - 15);
   } else {
-    gameState.player.currentHP = Math.min(gameState.player.maxHP, gameState.player.currentHP + 35);
     gameState.player.stamina = gameState.player.maxStamina;
-    gameState.player.exhaustion = Math.max(0, gameState.player.exhaustion - 50);
-    logToConsole('You awaken feeling restored.');
+    gameState.player.exhaustion = Math.max(0, gameState.player.exhaustion - 40);
+    gameState.player.currentHP = Math.min(gameState.player.maxHP, gameState.player.currentHP + 30);
+    logEvent('You awaken with your stamina restored and exhaustion alleviated.');
   }
+
   advanceTime(6);
 }
 
-// --- SETUP & BOOTSTRAP ---
-function switchScreen(id) {
+// --- NAVIGATION & INIT ---
+function switchScreen(screenName) {
   Object.values(screens).forEach(s => s.classList.add('hidden'));
-  screens[id].classList.remove('hidden');
-  gameState.screen = id;
+  screens[screenName].classList.remove('hidden');
+  gameState.screen = screenName;
 }
 
-function initializeGameInterface() {
+function bootGameplay() {
   document.getElementById('char-name-display').textContent =
     gameState.player.gender === 'male' ? 'The Huscarl' : 'The Shieldmaiden';
-  document.getElementById('char-class-display').textContent = `Path: ${gameState.player.path.toUpperCase()}`;
+  document.getElementById('char-class-badge').textContent = gameState.player.path;
 
-  // Gear labels
-  Object.entries(gameState.player.gear).forEach(([slot, itemId]) => {
-    const slotEl = document.getElementById(`slot-${slot}`);
-    if (slotEl) {
-      const item = ITEM_DEFINITIONS[itemId];
-      slotEl.textContent = `${slot.toUpperCase()}: ${item ? item.name : 'Empty'}`;
-    }
-  });
-
+  buildTimeSegments();
   updateTimeTracker();
-  updateVitalsDisplay();
+  updateVitals();
+
+  if (gameState.currentMap.length === 0) {
+    generateMap('Landfall');
+  }
   renderMap();
+  inspectTile(gameState.currentMap[gameState.playerPos.y][gameState.playerPos.x]);
 }
 
-// Check for existing save
-const existingSave = loadSaveData();
-if (existingSave) {
-  continueButton.classList.remove('hidden');
-  continueButton.addEventListener('click', () => {
-    Object.assign(gameState, existingSave);
-    switchScreen('gameInterface');
-    initializeGameInterface();
-    logToConsole('Restored journey from memory.');
-  });
-}
-
+// Setup Event Handlers
 document.getElementById('start-game-button').onclick = () => switchScreen('charSelect');
+
+const savedState = loadSavedGame();
+if (savedState) {
+  const contBtn = document.getElementById('continue-game-button');
+  contBtn.classList.remove('hidden');
+  contBtn.onclick = () => {
+    Object.assign(gameState, savedState);
+    switchScreen('gameInterface');
+    bootGameplay();
+    logEvent('Saga resumed from your last resting place.');
+  };
+}
 
 document.querySelectorAll('#gender-selection .choice-btn').forEach(btn => {
   btn.onclick = (e) => {
     gameState.player.gender = e.currentTarget.dataset.gender;
     document.querySelectorAll('#gender-selection .choice-btn').forEach(b => b.classList.remove('selected'));
     e.currentTarget.classList.add('selected');
-    document.getElementById('class-selection').classList.remove('hidden');
+    document.getElementById('gender-choice-text').textContent = `Chosen: ${e.currentTarget.textContent}`;
 
-    const container = document.querySelector('#class-selection .choice-buttons');
-    container.innerHTML = '';
-    GAME_PATHS.forEach(path => {
+    const classBox = document.getElementById('class-selection');
+    classBox.classList.remove('hidden');
+
+    const btnContainer = document.getElementById('class-buttons-container');
+    btnContainer.innerHTML = '';
+
+    GAME_PATHS.forEach(p => {
       const b = document.createElement('button');
       b.className = 'choice-btn';
-      b.textContent = path.name;
+      b.textContent = p.name;
       b.onclick = () => {
-        gameState.player.path = path.id;
-        document.querySelectorAll('#class-selection .choice-btn').forEach(pb => pb.classList.remove('selected'));
+        gameState.player.path = p.id;
+        document.querySelectorAll('#class-buttons-container .choice-btn').forEach(cb => cb.classList.remove('selected'));
         b.classList.add('selected');
-        document.getElementById('path-choice-text').textContent = `${path.name}: ${path.desc}`;
+        document.getElementById('path-choice-text').textContent = `${p.name}: ${p.desc} (${p.focus})`;
         document.getElementById('confirm-char-button').disabled = false;
       };
-      container.appendChild(b);
+      btnContainer.appendChild(b);
     });
   };
 });
 
 document.getElementById('confirm-char-button').onclick = () => {
-  buildMap('Landfall');
   switchScreen('gameInterface');
-  initializeGameInterface();
+  bootGameplay();
 };
 
-document.getElementById('manual-save-button').onclick = saveGame;
+document.getElementById('manual-save-btn').onclick = saveGame;
