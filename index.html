@@ -12,7 +12,7 @@
       <div class="parchment-frame">
         <h1 class="game-logo">VIKING JOURNEY</h1>
         <p class="flavor-text">
-          Cold winds sweep across the fjord. An oath was sworn, and blood will answer.
+          Cold winds blow across the fjord. An oath was sworn, and blood will answer.
         </p>
         <div class="screen-actions">
           <button id="btn-new-journey" class="rune-btn">New Journey</button>
@@ -21,11 +21,11 @@
       </div>
     </div>
 
-    <!-- Continue / Character Selection Screen -->
+    <!-- Continue / Roster Screen -->
     <div id="roster-screen" class="screen-overlay hidden">
       <div class="parchment-frame wide-frame">
         <h2>Select Your Saga</h2>
-        <p class="subtext">Choose a warrior to resume their path across the north.</p>
+        <p class="screen-subtitle">Choose a saved warrior to resume your voyage.</p>
         <div id="character-slots-list" class="slots-container"></div>
         <div class="screen-actions">
           <button id="btn-roster-back" class="rune-btn secondary-btn">Back</button>
@@ -33,117 +33,95 @@
       </div>
     </div>
 
-    <!-- Character Creation Screen -->
-    <div id="char-create-screen" class="screen-overlay hidden">
-      <div class="parchment-frame wide-frame">
-        <h2>Forge Your Traveler</h2>
-
-        <!-- Step 1: Kin / Gender -->
-        <div class="creator-step">
-          <label class="step-label">1. Choose Kin</label>
-          <div class="choice-row" id="gender-choice-row">
-            <button class="choice-btn selected" data-gender="Man">
-              <span class="choice-icon">🪓</span>
-              <strong>Man</strong>
-            </button>
-            <button class="choice-btn" data-gender="Shieldmaiden">
-              <span class="choice-icon">🛡️</span>
-              <strong>Shieldmaiden</strong>
-            </button>
-          </div>
+    <!-- Step 1: Choose Kin -->
+    <div id="screen-choose-gender" class="screen-overlay hidden">
+      <div class="parchment-frame">
+        <h2>Choose Your Kin</h2>
+        <p class="screen-subtitle">Who answers the call of the North?</p>
+        <div class="choice-deck">
+          <button class="card-choice-btn" data-gender="Man">
+            <span class="choice-portrait">🧔</span>
+            <strong>Man</strong>
+            <small>Brother-in-arms</small>
+          </button>
+          <button class="card-choice-btn" data-gender="Shieldmaiden">
+            <span class="choice-portrait">👩‍🦰</span>
+            <strong>Shieldmaiden</strong>
+            <small>Defender of the clan</small>
+          </button>
         </div>
-
-        <!-- Step 2: Calling / Class -->
-        <div class="creator-step">
-          <label class="step-label">2. Choose Calling</label>
-          <div class="choice-row" id="class-choice-row">
-            <button class="choice-btn selected" data-class="Warrior">
-              <span class="choice-icon">⚔️</span>
-              <strong>Warrior</strong>
-              <small>Rage & Stamina</small>
-            </button>
-            <button class="choice-btn" data-class="Mage">
-              <span class="choice-icon">🔮</span>
-              <strong>Mage</strong>
-              <small>Seiðr & Mana</small>
-            </button>
-          </div>
-        </div>
-
-        <!-- Step 3: Name (Max 5 Chars) -->
-        <div class="creator-step">
-          <label class="step-label" for="player-name-input">3. Inscribe Name (5 Letters)</label>
-          <div class="input-wrap">
-            <input
-              type="text"
-              id="player-name-input"
-              maxlength="5"
-              placeholder="ODIN"
-              autocomplete="off"
-            />
-            <span id="char-limit-indicator">0 / 5</span>
-          </div>
-        </div>
-
         <div class="screen-actions">
-          <button id="btn-create-back" class="rune-btn secondary-btn">Back</button>
-          <button id="btn-create-confirm" class="rune-btn">Carve Destiny</button>
+          <button id="btn-gender-back" class="rune-btn secondary-btn">Back</button>
         </div>
       </div>
     </div>
 
-    <!-- In-Game 3-Panel Main Layout -->
+    <!-- Step 2: Choose Calling -->
+    <div id="screen-choose-class" class="screen-overlay hidden">
+      <div class="parchment-frame">
+        <h2>Choose Your Calling</h2>
+        <p class="screen-subtitle">How do you master fate and battle?</p>
+        <div class="choice-deck">
+          <button class="card-choice-btn" data-class="Warrior">
+            <span class="choice-portrait">⚔️</span>
+            <strong>Warrior</strong>
+            <small>Stamina & Rage</small>
+          </button>
+          <button class="card-choice-btn" data-class="Mage">
+            <span class="choice-portrait">🔮</span>
+            <strong>Mage</strong>
+            <small>Seiðr & Mana</small>
+          </button>
+        </div>
+        <div class="screen-actions">
+          <button id="btn-class-back" class="rune-btn secondary-btn">Back</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Step 3: Name Carving -->
+    <div id="screen-choose-name" class="screen-overlay hidden">
+      <div class="parchment-frame">
+        <h2>Inscribe Name</h2>
+        <p class="screen-subtitle">Carve your rune-name in stone (5 Letters Maximum).</p>
+        <div class="input-wrap">
+          <input type="text" id="player-name-input" maxlength="5" placeholder="EINAR" autocomplete="off" />
+          <span id="char-limit-indicator">0 / 5</span>
+        </div>
+        <div class="screen-actions">
+          <button id="btn-name-back" class="rune-btn secondary-btn">Back</button>
+          <button id="btn-name-confirm" class="rune-btn">Carve Destiny</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Main Game HUD -->
     <div id="game-interface" class="game-screen hidden">
-      <!-- Left Panel: Hero Vitals, Attributes, Gear -->
       <aside id="player-panel" class="panel">
         <div class="panel-header">
-          <div class="hero-identity">
+          <div>
             <h2 id="hud-player-name">EINAR</h2>
             <span id="hud-player-class" class="badge">Warrior</span>
           </div>
           <span id="hud-player-gender" class="sub-badge">Man</span>
         </div>
 
-        <!-- Dynamic Vitals Bars -->
         <div class="vitals-group">
           <div class="meter-wrapper">
-            <div class="meter-label">
-              <span>Health</span>
-              <span id="hp-text">100 / 100</span>
-            </div>
+            <div class="meter-label"><span>Health</span><span id="hp-text">100 / 100</span></div>
             <div class="meter-track"><div id="hp-meter-bar" class="meter-bar hp-bar"></div></div>
           </div>
-
-          <div class="meter-wrapper" id="primary-resource-wrapper">
-            <div class="meter-label">
-              <span id="resource-name-label">Stamina / Rage</span>
-              <span id="resource-text">100 / 100</span>
-            </div>
+          <div class="meter-wrapper">
+            <div class="meter-label"><span id="resource-name-label">Stamina / Rage</span><span id="resource-text">100 / 100</span></div>
             <div class="meter-track"><div id="resource-meter-bar" class="meter-bar stamina-bar"></div></div>
           </div>
-
           <div class="meter-wrapper">
-            <div class="meter-label">
-              <span>Exhaustion</span>
-              <span id="exhaustion-text">0%</span>
-            </div>
+            <div class="meter-label"><span>Exhaustion</span><span id="exhaustion-text">0%</span></div>
             <div class="meter-track"><div id="exhaustion-meter-bar" class="meter-bar exhaustion-bar"></div></div>
           </div>
         </div>
 
-        <!-- Gear Slots -->
-        <h3>Equipped Gear</h3>
-        <div id="gear-doll" class="doll-grid">
-          <div class="doll-slot" id="slot-head"><small>Head</small><span>Empty</span></div>
-          <div class="doll-slot" id="slot-mainhand"><small>Weapon</small><span>Iron Seax</span></div>
-          <div class="doll-slot" id="slot-chest"><small>Chest</small><span>Boiled Leather</span></div>
-          <div class="doll-slot" id="slot-offhand"><small>Off Hand</small><span>Wooden Shield</span></div>
-          <div class="doll-slot" id="slot-boots"><small>Boots</small><span>Fur Wraps</span></div>
-        </div>
-
-        <!-- Attributes -->
-        <h3>Attributes</h3>
-        <div id="attribute-list" class="stat-pill-container"></div>
+        <button id="btn-open-char-sheet" class="rune-btn" style="margin-top: 10px;">Open Character Sheet</button>
 
         <div class="panel-footer-actions">
           <button id="manual-save-btn" class="rune-btn mini-btn">Save Saga</button>
@@ -151,7 +129,6 @@
         </div>
       </aside>
 
-      <!-- Center Panel: Clock, Scaled Grid Map, Event Console -->
       <main id="game-viewport">
         <header id="world-header">
           <div class="cycle-container">
@@ -164,60 +141,168 @@
             <span id="cycle-phase-label" class="phase-tag">Morning • Day 1</span>
           </div>
         </header>
-
-        <div id="game-map-container">
-          <div id="game-map"></div>
-        </div>
-
-        <!-- Scrollable Event Console -->
+        <div id="game-map-container"><div id="game-map"></div></div>
         <div id="game-console">
           <div class="console-title-bar">Saga Event Log</div>
           <div id="console-output"></div>
         </div>
       </main>
 
-      <!-- Right Panel: Target, Hovered Tile, NPC & Enemy Inspector -->
       <aside id="inspector-panel" class="panel">
         <div class="panel-header">
           <h2>Inspection</h2>
           <span id="inspector-type-badge" class="badge">Terrain</span>
         </div>
-
-        <!-- Target / Unit Information Card -->
         <div id="unit-target-card" class="target-card">
-          <div id="target-portrait-box" class="portrait-box">
-            <span id="target-icon">🏕️</span>
-          </div>
+          <div id="target-portrait-box" class="portrait-box"><span id="target-icon">🏕️</span></div>
           <h3 id="target-name">Open Wilderness</h3>
           <p id="target-subtitle" class="subtext">Windswept coastal plains</p>
-
-          <!-- Dynamic Unit Stats (Enemies / NPCs) -->
           <div id="target-stats-block" class="target-stats-block hidden">
-            <div class="unit-stat-row">
-              <span>Threat Level:</span>
-              <strong id="target-threat">1</strong>
-            </div>
-            <div class="unit-stat-row">
-              <span>Vitality:</span>
-              <strong id="target-hp">40 / 40</strong>
-            </div>
-            <div class="unit-stat-row">
-              <span>Attack Power:</span>
-              <strong id="target-attack">8 (Physical)</strong>
-            </div>
+            <div class="unit-stat-row"><span>Threat Level:</span><strong id="target-threat">1</strong></div>
+            <div class="unit-stat-row"><span>Vitality:</span><strong id="target-hp">40 / 40</strong></div>
+            <div class="unit-stat-row"><span>Attack Power:</span><strong id="target-attack">8</strong></div>
           </div>
-
-          <p id="target-description" class="target-desc-text">
-            Rough terrain stretches across the coastline. Safe enough to establish a camp fire and rest.
-          </p>
+          <p id="target-description" class="target-desc-text">Rough terrain stretches across the coastline. Safe enough to establish camp.</p>
         </div>
-
-        <!-- Action & Dialogue Decisions Section -->
         <div class="action-section">
           <h3 id="action-section-title">Decisions & Actions</h3>
           <div id="inspector-actions" class="action-button-list"></div>
         </div>
       </aside>
+    </div>
+
+    <!-- POPUP MODAL SYSTEM (Encounters, Shops, Quests, Char Sheet) -->
+    <div id="modal-container" class="screen-overlay hidden">
+      
+      <!-- 1. Combat Modal -->
+      <div id="modal-combat" class="modal-window hidden">
+        <div class="modal-header"><h2>Encounter!</h2></div>
+        <div class="modal-body combat-layout">
+          <div class="combat-entity hero-side">
+            <h3 id="combat-hero-name">Hero</h3>
+            <div class="combat-portrait">🛡️</div>
+            <div class="combat-vitals">
+              <div class="combat-bar-bg"><div class="combat-bar hp-bar" style="width:100%"></div></div>
+              <div class="combat-bar-bg"><div class="combat-bar stamina-bar" style="width:100%"></div></div>
+            </div>
+            <select class="combat-action-dropdown">
+              <option>Basic Attack</option>
+              <option>Defend</option>
+              <option>Use Potion</option>
+            </select>
+            <button class="rune-btn" onclick="executeTurn()">Do Action</button>
+          </div>
+          <div class="combat-center">
+            <div class="combat-animation-box">Animation of action taken<br>AND FROM WHAT DIRECTION</div>
+            <div class="combat-log">Scrolling Window:<br>Battle actions will appear here.</div>
+          </div>
+          <div class="combat-entity enemy-side">
+            <h3 id="combat-enemy-name">Enemy</h3>
+            <div class="combat-portrait" id="combat-enemy-icon">💀</div>
+            <div class="combat-vitals">
+              <div class="combat-bar-bg"><div class="combat-bar hp-bar" id="combat-enemy-hp" style="width:100%"></div></div>
+            </div>
+          </div>
+        </div>
+        <div class="turn-queue-bar">
+          <div class="turn-box">HERO</div>
+          <div class="turn-box">ENEMY</div>
+          <div class="turn-box active-turn">HERO</div>
+          <div class="turn-box stunned">ENEMY</div>
+        </div>
+        <button class="rune-btn secondary-btn close-modal-btn">Flee (Close)</button>
+      </div>
+
+      <!-- 2. Quest / NPC Modal -->
+      <div id="modal-quest" class="modal-window hidden">
+        <div class="modal-header"><h2>Conversation</h2></div>
+        <div class="modal-body quest-layout">
+          <div class="quest-side hero-side">
+            <div class="combat-portrait">🛡️</div>
+            <div class="quest-choices">
+              <button class="rune-btn">Accept Quest</button>
+              <button class="rune-btn secondary-btn">Decline</button>
+            </div>
+          </div>
+          <div class="combat-center">
+            <div class="combat-animation-box">NPC Interaction</div>
+            <div class="combat-log">With actions taken by hero or enemy and the outcome...</div>
+          </div>
+          <div class="quest-side npc-side">
+            <h3 id="quest-npc-name">NPC Name</h3>
+            <div class="combat-portrait" id="quest-npc-icon">🧙</div>
+            <div class="quest-details-box">
+              <h4>Quest Goal:</h4>
+              <p>Kill 5 Boars</p>
+              <h4>Loot for completion:</h4>
+              <div class="loot-options">
+                <div class="loot-item">+Stats Weapon</div>
+                <div class="loot-item">+Stats Chest</div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <button class="rune-btn secondary-btn close-modal-btn">Leave</button>
+      </div>
+
+      <!-- 3. Shop Modal -->
+      <div id="modal-shop" class="modal-window hidden">
+        <div class="modal-header"><h2>Merchant</h2></div>
+        <div class="modal-body shop-layout">
+          <div class="shop-column">
+            <h3>Hero Inventory</h3>
+            <div class="combat-portrait">🛡️</div>
+            <div class="shop-list">
+              <div class="shop-item">Lvl 3 Sword (5 Gold)</div>
+              <div class="shop-item">Healing Pot (1 Silver)</div>
+            </div>
+            <div class="gold-display">Your Gold: 14.5</div>
+          </div>
+          <div class="shop-column">
+            <h3>Shopkeeper</h3>
+            <div class="combat-portrait">🧙</div>
+            <div class="shop-list">
+              <div class="shop-item">Healing Pot (1 Silver)</div>
+              <div class="shop-item">Mana Pot (1 Silver)</div>
+            </div>
+            <div class="gold-display">Shop Gold: 100</div>
+          </div>
+        </div>
+        <div class="combat-log" style="height: 60px; margin-top: 10px;">Double click item to buy/sell.</div>
+        <button class="rune-btn secondary-btn close-modal-btn" style="margin-top: 10px;">Close Shop</button>
+      </div>
+
+      <!-- 4. Character Sheet Modal -->
+      <div id="modal-charsheet" class="modal-window hidden">
+        <div class="modal-header"><h2 id="sheet-title">CHAR NAME - CLASS - LVL 1</h2></div>
+        <div class="modal-body char-sheet-layout">
+          <div class="sheet-stats">
+            <h3>Stats</h3>
+            <div id="sheet-stats-list"></div>
+          </div>
+          <div class="sheet-gear-doll">
+            <div class="gear-slot head-slot">Head</div>
+            <div class="gear-row">
+              <div class="gear-slot weapon-slot">Main Weapon</div>
+              <div class="gear-slot chest-slot">Chest</div>
+              <div class="gear-slot offhand-slot">Offhand</div>
+            </div>
+            <div class="gear-slot legs-slot">Legs</div>
+            <div class="gear-slot feet-slot">Feet</div>
+          </div>
+          <div class="sheet-hover-info">
+            <h3>Hover Info</h3>
+            <p>Hover over items to see stats (+Attack, +Ice Dmg).</p>
+          </div>
+        </div>
+        <div class="sheet-inventory-grid">
+          <!-- Placeholder for inventory squares -->
+          <div class="inv-square"></div><div class="inv-square"></div><div class="inv-square"></div>
+          <div class="inv-square"></div><div class="inv-square"></div><div class="inv-square"></div>
+        </div>
+        <button class="rune-btn secondary-btn close-modal-btn" style="margin-top: 10px;">Close Sheet</button>
+      </div>
+
     </div>
 
     <script src="./main.js" type="module"></script>
