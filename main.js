@@ -1,5 +1,6 @@
 /**
  * VIKING JOURNEY - Master Game Engine
+ * New Feature: Automated A-to-B Pathfinding Movement
  */
 
 const STORAGE_ROSTER_KEY = 'viking_journey_roster_v3';
@@ -25,15 +26,15 @@ const TILE_TYPES = {
 };
 
 const ENCOUNTER_TYPES = [
-  { type: 'enemy', name: 'Draugr Sentry', description: 'An undead warrior clad in rusted mail, gripping a chipped spear.', threat: 1, hp: 40, maxHp: 40, attackPower: 7, symbol: '💀' },
-  { type: 'treasure', name: 'Buried Norse Cache', description: 'An iron-reinforced chest embedded into frozen earth.', threat: 0, symbol: '📦' },
-  { type: 'npc', name: 'Sigurd the Skald', description: 'A weathered wanderer who trades chants, rumors, and forged goods.', threat: 0, symbol: '🧙' }
+  { type: 'enemy', name: 'Draugr Sentry', description: 'An undead warrior clad in rusted mail.', threat: 1, hp: 40, maxHp: 40, attackPower: 7, symbol: '💀' },
+  { type: 'treasure', name: 'Buried Norse Cache', description: 'An iron chest in the earth.', threat: 0, symbol: '📦' },
+  { type: 'npc', name: 'Sigurd the Skald', description: 'A weathered wanderer trading goods.', threat: 0, symbol: '🧙' }
 ];
 
 const GEAR_REGISTRY = {
-  seax: { id: 'seax', name: 'Iron Seax', slot: 'mainhand', rarity: 'common', resolveStats: (cls) => cls === 'Warrior' ? { attack: 8, rageBonus: 5 } : { attack: 4, spellPower: 6, manaMax: 15 } },
-  leather: { id: 'leather', name: 'Boiled Leather', slot: 'chest', rarity: 'common', resolveStats: (cls) => cls === 'Warrior' ? { defense: 8, physicalBlock: 4 } : { defense: 5, manaRegen: 3 } },
-  shield: { id: 'shield', name: 'Oak Shield', slot: 'offhand', rarity: 'common', resolveStats: (cls) => cls === 'Warrior' ? { blockRate: 12, hpMax: 25 } : { ward: 10, runeSpell: 5 } },
+  seax: { id: 'seax', name: 'Iron Seax', slot: 'mainhand', rarity: 'common', resolveStats: (c) => c === 'Warrior' ? { attack: 8, rageBonus: 5 } : { attack: 4, spellPower: 6, manaMax: 15 } },
+  leather: { id: 'leather', name: 'Boiled Leather', slot: 'chest', rarity: 'common', resolveStats: (c) => c === 'Warrior' ? { defense: 8, physicalBlock: 4 } : { defense: 5, manaRegen: 3 } },
+  shield: { id: 'shield', name: 'Oak Shield', slot: 'offhand', rarity: 'common', resolveStats: (c) => c === 'Warrior' ? { blockRate: 12, hpMax: 25 } : { ward: 10, runeSpell: 5 } },
   wraps: { id: 'wraps', name: 'Fur Wraps', slot: 'boots', rarity: 'common', resolveStats: () => ({ moveStaminaCost: -1 }) }
 };
 
@@ -124,6 +125,7 @@ function decodeTile(num) {
 // Global Game State
 let currentHero = null;
 let activeMapData = null;
+let isMoving = false; // Prevents clicking while walking
 
 // Roster Storage
 function getSavedRoster() {
@@ -248,44 +250,20 @@ function updateVitals() {
 
   document.getElementById('exhaustion-text').textContent = `${Math.round(p.exhaustion)}%`;
   document.getElementById('exhaustion-meter-bar').style.width = `${p.exhaustion}%`;
-
-  const attrBox = document.getElementById('attribute-list');
-  attrBox.innerHTML = '';
-  Object.entries(p.stats).forEach(([stat, val]) => {
-    const pill = document.createElement('div');
-    pill.className = 'stat-pill';
-    pill.innerHTML = `<span>${stat.toUpperCase()}</span><strong>${val}</strong>`;
-    attrBox.appendChild(pill);
-  });
-
-  Object.entries(p.gear).forEach(([slot, itemId]) => {
-    const slotEl = document.querySelector(`#slot-${slot} span`);
-    if (slotEl) {
-      if (itemId && GEAR_REGISTRY[itemId]) {
-        const item = GEAR_REGISTRY[itemId];
-        const stats = item.resolveStats(p.class);
-        const statLabel = Object.entries(stats).map(([k, v]) => `+${v} ${k}`).join(', ');
-        slotEl.textContent = `${item.name} (${statLabel})`;
-      } else {
-        slotEl.textContent = 'Empty';
-      }
-    }
-  });
 }
 
 function handleDeath() {
+  isMoving = false; // Interrupt movement
   logEvent('You have fallen... The Valkyries return you to your last camp.');
-  currentHero.currentHP = Math.floor(currentHero.maxHP / 2); // Wake up with half HP
+  currentHero.currentHP = Math.floor(currentHero.maxHP / 2); 
   currentHero.exhaustion = 0; 
   currentHero.resource = currentHero.maxResource;
 
   if (currentHero.campPos) {
-    // Return to Campfire
     const destMap = currentHero.campPos.mapName.includes('Hall') ? 'Longhouse' : 'Landfall';
     loadMap(destMap);
     currentHero.pos = { x: currentHero.campPos.x, y: currentHero.campPos.y };
   } else {
-    // Return to start if no camp
     loadMap('Landfall');
     currentHero.pos = { x: 9, y: 17 };
   }
@@ -305,10 +283,8 @@ function advanceTime(hours = 1) {
     currentHero.time.day += 1;
   }
 
-  // Exhaustion increases by walking/acting. Mana/Stam DO NOT drain outside of combat.
   currentHero.exhaustion = Math.min(100, currentHero.exhaustion + (hours * 1.5));
 
-  // If exhaustion hits 100, take damage instead of draining resources
   if (currentHero.exhaustion >= 100) {
     currentHero.currentHP = Math.max(0, currentHero.currentHP - (hours * 5));
     logEvent('Exhaustion overtakes your body! You take damage.');
@@ -320,6 +296,83 @@ function advanceTime(hours = 1) {
     updateTimeTracker();
     updateVitals();
     persistCurrentHero();
+  }
+}
+
+// --- Pathfinding & Automated Movement ---
+
+function findPath(startX, startY, goalX, goalY) {
+  const queue = [{ x: startX, y: startY, path: [] }];
+  const visited = new Set();
+  visited.add(`${startX},${startY}`);
+
+  const dirs = [[0, -1], [1, 0], [0, 1], [-1, 0]]; // N, E, S, W
+
+  while (queue.length > 0) {
+    const current = queue.shift();
+
+    if (current.x === goalX && current.y === goalY) {
+      return current.path;
+    }
+
+    for (let [dx, dy] of dirs) {
+      const nx = current.x + dx;
+      const ny = current.y + dy;
+
+      if (nx >= 0 && nx < MAP_WIDTH && ny >= 0 && ny < MAP_HEIGHT) {
+        const tile = activeMapData[ny][nx];
+        if (tile.type.walkable && !visited.has(`${nx},${ny}`)) {
+          visited.add(`${nx},${ny}`);
+          queue.push({
+            x: nx,
+            y: ny,
+            path: [...current.path, { x: nx, y: ny }]
+          });
+        }
+      }
+    }
+  }
+  return null; // No path found
+}
+
+function initiateTravel(tx, ty) {
+  if (isMoving) return;
+  const path = findPath(currentHero.pos.x, currentHero.pos.y, tx, ty);
+  
+  if (path && path.length > 0) {
+    isMoving = true;
+    walkNextStep(path);
+  } else {
+    logEvent("No safe path through the wild.");
+  }
+}
+
+function walkNextStep(path) {
+  if (path.length === 0 || currentHero.currentHP <= 0) {
+    isMoving = false;
+    return;
+  }
+
+  const nextNode = path.shift();
+  const tile = activeMapData[nextNode.y][nextNode.x];
+
+  // Advance time & logic
+  advanceTime(1);
+  if (currentHero.currentHP > 0) {
+    currentHero.pos = { x: nextNode.x, y: nextNode.y };
+    tile.visited = true;
+    renderMap();
+    inspectTile(tile, true);
+
+    // Stop walking if we step on an encounter, a door, or reach 100 exhaustion
+    if (tile.encounter || tile.type.action || currentHero.exhaustion >= 100) {
+      isMoving = false;
+      logEvent(tile.encounter ? "Movement interrupted by an encounter!" : "Movement halted.");
+      return;
+    }
+
+    // Continue to next tile with a 250ms delay
+    setTimeout(() => walkNextStep(path), 250);
   }
 }
 
@@ -360,10 +413,12 @@ function renderMap() {
       if (x === px && y === py) cell.classList.add('player');
       if (tile.visited) cell.classList.add('visited');
 
-      const isAdjacent = Math.abs(x - px) + Math.abs(y - py) === 1;
-      if (isAdjacent && tile.type.walkable) {
+      // Make ALL walkable tiles clickable for A-to-B pathfinding
+      if (tile.type.walkable && !(x === px && y === py)) {
         cell.classList.add('can-move');
-        cell.addEventListener('click', () => stepTo(x, y));
+        cell.addEventListener('click', () => {
+          if (!isMoving) initiateTravel(x, y);
+        });
       }
 
       cell.addEventListener('mouseenter', () => inspectTile(tile, false));
@@ -374,7 +429,6 @@ function renderMap() {
         cell.textContent = tile.type.symbol;
       }
 
-      // Draw Campfire if it exists here
       if (currentHero.campPos && currentHero.campPos.mapName === currentHero.currentLocation && 
           currentHero.campPos.x === x && currentHero.campPos.y === y) {
         const campMarker = document.createElement('span');
@@ -388,27 +442,11 @@ function renderMap() {
   }
 }
 
-function stepTo(nx, ny) {
-  const tile = activeMapData[ny][nx];
-  if (!tile.type.walkable) return;
-
-  // Advance time first (this calculates exhaustion and might trigger death)
-  advanceTime(1);
-
-  // CRITICAL FIX: Only move to the new tile if the hero SURVIVED the time advancement
-  if (currentHero.currentHP > 0) {
-    currentHero.pos = { x: nx, y: ny };
-    tile.visited = true;
-    renderMap();
-    inspectTile(tile, true);
-  }
-}
-
 function restHero() {
+  if (isMoving) return; // Cannot camp while walking
   const isNight = currentHero.time.hour >= 22 || currentHero.time.hour <= 5;
   logEvent('You kindle a camp fire and rest. Saga Saved.');
 
-  // Place or move campfire save point
   currentHero.campPos = { 
     mapName: currentHero.currentLocation, 
     x: currentHero.pos.x, 
@@ -427,7 +465,7 @@ function restHero() {
 
   advanceTime(6);
   persistCurrentHero();
-  renderMap(); // Re-render to show the fire immediately
+  renderMap();
 }
 
 function inspectTile(tile, isInteracting = false) {
@@ -464,7 +502,6 @@ function inspectTile(tile, isInteracting = false) {
         battleBtn.textContent = `Strike with ${currentHero.gear.mainhand ? 'Weapon' : 'Fists'}`;
         battleBtn.onclick = () => {
           logEvent(`You engaged in combat with ${enc.name}!`);
-          // Note: Real combat logic goes here in Phase 3
           tile.encounter = null;
           renderMap();
           inspectTile(tile, false);
@@ -621,7 +658,7 @@ document.getElementById('btn-name-confirm').onclick = () => {
     level: 1,
     currentLocation: 'Landfall Coast',
     pos: { x: 9, y: 17 },
-    campPos: null, // Tracks solitary save point
+    campPos: null,
     time: { hour: 6, day: 1 },
     maxHP: 100, currentHP: 100,
     maxResource: 100, resource: 100,
@@ -633,17 +670,16 @@ document.getElementById('btn-name-confirm').onclick = () => {
   launchGameplay();
 };
 
-// Permanent Left Panel Actions
-document.getElementById('make-camp-btn').onclick = () => {
-  restHero();
-};
+document.getElementById('make-camp-btn').onclick = () => restHero();
 
 document.getElementById('manual-save-btn').onclick = () => {
+  if (isMoving) return;
   persistCurrentHero();
   logEvent('Progress etched in stone (Saved).');
 };
 
 document.getElementById('exit-to-title-btn').onclick = () => {
+  if (isMoving) return;
   persistCurrentHero();
   switchScreen('title');
 };
