@@ -275,18 +275,19 @@ function updateVitals() {
 
 function handleDeath() {
   logEvent('You have fallen... The Valkyries return you to your last camp.');
-  currentHero.currentHP = Math.floor(currentHero.maxHP / 2); 
+  currentHero.currentHP = Math.floor(currentHero.maxHP / 2); // Wake up with half HP
   currentHero.exhaustion = 0; 
   currentHero.resource = currentHero.maxResource;
 
   if (currentHero.campPos) {
-    currentHero.currentLocation = currentHero.campPos.mapName;
+    // Return to Campfire
+    const destMap = currentHero.campPos.mapName.includes('Hall') ? 'Longhouse' : 'Landfall';
+    loadMap(destMap);
     currentHero.pos = { x: currentHero.campPos.x, y: currentHero.campPos.y };
-    loadMap(currentHero.campPos.mapId);
   } else {
-    currentHero.currentLocation = 'Landfall Coast';
-    currentHero.pos = { x: 9, y: 17 };
+    // Return to start if no camp
     loadMap('Landfall');
+    currentHero.pos = { x: 9, y: 17 };
   }
 
   activeMapData[currentHero.pos.y][currentHero.pos.x].visited = true;
@@ -304,10 +305,10 @@ function advanceTime(hours = 1) {
     currentHero.time.day += 1;
   }
 
-  // Exhaustion goes up from walking. Mana/Stam DO NOT drain outside of combat anymore.
+  // Exhaustion increases by walking/acting. Mana/Stam DO NOT drain outside of combat.
   currentHero.exhaustion = Math.min(100, currentHero.exhaustion + (hours * 1.5));
 
-  // If exhaustion hits 100, take damage instead.
+  // If exhaustion hits 100, take damage instead of draining resources
   if (currentHero.exhaustion >= 100) {
     currentHero.currentHP = Math.max(0, currentHero.currentHP - (hours * 5));
     logEvent('Exhaustion overtakes your body! You take damage.');
@@ -390,11 +391,17 @@ function renderMap() {
 function stepTo(nx, ny) {
   const tile = activeMapData[ny][nx];
   if (!tile.type.walkable) return;
+
+  // Advance time first (this calculates exhaustion and might trigger death)
   advanceTime(1);
-  currentHero.pos = { x: nx, y: ny };
-  tile.visited = true;
-  renderMap();
-  inspectTile(tile, true);
+
+  // CRITICAL FIX: Only move to the new tile if the hero SURVIVED the time advancement
+  if (currentHero.currentHP > 0) {
+    currentHero.pos = { x: nx, y: ny };
+    tile.visited = true;
+    renderMap();
+    inspectTile(tile, true);
+  }
 }
 
 function restHero() {
@@ -402,9 +409,7 @@ function restHero() {
   logEvent('You kindle a camp fire and rest. Saga Saved.');
 
   // Place or move campfire save point
-  const mapId = currentHero.currentLocation.includes('Hall') ? 'Longhouse' : 'Landfall';
   currentHero.campPos = { 
-    mapId: mapId, 
     mapName: currentHero.currentLocation, 
     x: currentHero.pos.x, 
     y: currentHero.pos.y 
@@ -459,6 +464,7 @@ function inspectTile(tile, isInteracting = false) {
         battleBtn.textContent = `Strike with ${currentHero.gear.mainhand ? 'Weapon' : 'Fists'}`;
         battleBtn.onclick = () => {
           logEvent(`You engaged in combat with ${enc.name}!`);
+          // Note: Real combat logic goes here in Phase 3
           tile.encounter = null;
           renderMap();
           inspectTile(tile, false);
@@ -534,14 +540,6 @@ function inspectTile(tile, isInteracting = false) {
     targetDesc.textContent = tile.type.walkable
       ? 'An open stretch of northern wild. Safe to set up camp and rest.'
       : 'Natural barriers block direct progress.';
-
-    if (isInteracting && tile.type.walkable) {
-      const restBtn = document.createElement('button');
-      restBtn.className = 'rune-btn';
-      restBtn.textContent = 'Make Camp & Rest (Save)';
-      restBtn.onclick = () => restHero();
-      actionsList.appendChild(restBtn);
-    }
   }
 }
 
@@ -623,7 +621,7 @@ document.getElementById('btn-name-confirm').onclick = () => {
     level: 1,
     currentLocation: 'Landfall Coast',
     pos: { x: 9, y: 17 },
-    campPos: null, // Track solitary save point
+    campPos: null, // Tracks solitary save point
     time: { hour: 6, day: 1 },
     maxHP: 100, currentHP: 100,
     maxResource: 100, resource: 100,
@@ -633,6 +631,11 @@ document.getElementById('btn-name-confirm').onclick = () => {
   };
   persistCurrentHero();
   launchGameplay();
+};
+
+// Permanent Left Panel Actions
+document.getElementById('make-camp-btn').onclick = () => {
+  restHero();
 };
 
 document.getElementById('manual-save-btn').onclick = () => {

@@ -639,3 +639,13 @@ html, body {
 .action-button-list button {
   width: 100%;
 }
+
+.camp-marker {
+  position: absolute;
+  bottom: -2px;
+  right: -2px;
+  font-size: 14px;
+  filter: drop-shadow(0 0 6px #e0aa53);
+  pointer-events: none;
+  z-index: 5;
+}
