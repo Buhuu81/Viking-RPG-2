@@ -1,932 +1,826 @@
 /**
- * VIKING JOURNEY - Game Logic
- *
- * This script handles screen transitions, character selection, map generation,
- * player movement, and the visually updated 24-hour Day/Night cycle.
+ * VIKING JOURNEY - Master Game Engine
+ * Features: Multi-character save slots (5-letter names), centered responsive layout,
+ * target hover & encounter inspector, dynamic class gear re-evaluator,
+ * 24-hour cycle with day/night enemy scaling.
  */
 
-// --- GLOBAL CONFIG & GAME STATE ---
-
+const STORAGE_ROSTER_KEY = 'viking_journey_roster_v3';
+const STORAGE_CURRENT_HERO_KEY = 'viking_journey_active_hero_id';
 const MAP_WIDTH = 20;
-const MAP_HEIGHT = 40;
+const MAP_HEIGHT = 20;
+const ASSET_PATH = '/src/assets/pictures/tiles';
 
-// === NEW: DETAILED TILE TYPES with image paths ===
-const TILE_TYPAES = {
-  // Non-Walkable Barrier Tiles
+// Procedural SVG fallback textures
+const createTileSvg = (bg, stroke) =>
+  `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="28" height="28"><rect width="28" height="28" fill="${bg}" stroke="${stroke}" stroke-width="2"/></svg>`;
+
+const TILE_TYPES = {
+  WALL_ROCK: {
+    id: 'wall_rock',
+    name: 'Steep Mountain',
+    symbol: '⛰️',
+    walkable: false,
+    image: `${ASSET_PATH}/wall_rock.png`,
+    fallback: createTileSvg('%2320252f', '%23141820')
+  },
   WALL_CASTLE: {
     id: 'wall_castle',
+    name: 'Keep Wall',
     symbol: '🏰',
     walkable: false,
-    image: 'assets/tiles/wall_castle.png',
+    image: `${ASSET_PATH}/wall_castle.png`,
+    fallback: createTileSvg('%231a1e24', '%23333a47')
   },
   WALL_HOUSE: {
     id: 'wall_house',
+    name: 'Timber Wall',
     symbol: '🏠',
     walkable: false,
-    image: 'assets/tiles/wall_house.png',
+    image: `${ASSET_PATH}/wall_house.png`,
+    fallback: createTileSvg('%23443322', '%23261a10')
   },
-  WALL_CAVE: {
-    id: 'wall_cave',
-    symbol: '🪨',
-    walkable: false,
-    image: 'assets/tiles/wall_cave.png',
-  },
-  WALL_ROCK: {
-    id: 'wall_rock',
-    symbol: '⛰️',
-    walkable: false,
-    image: 'assets/tiles/wall_rock.png',
-  },
-
-  // Non-Walkable Terrain Hazards
-  LAVA: {
-    id: 'lava',
-    symbol: '🔥',
-    walkable: false,
-    image: 'assets/tiles/lava.png',
-  },
-  WATER_LAKE: {
-    id: 'water_lake',
-    symbol: '💧',
-    walkable: false,
-    image: 'assets/tiles/water_lake.png',
-  },
-
-  // Walkable Ground Tiles
   GROUND_FIELD: {
     id: 'ground_field',
-    symbol: '.',
+    name: 'Frozen Meadow',
+    symbol: '',
     walkable: true,
-    image: 'assets/tiles/ground_field.png',
-  },
-  GROUND_STONE: {
-    id: 'ground_stone',
-    symbol: '=',
-    walkable: true,
-    image: 'assets/tiles/ground_stone.png',
+    image: `${ASSET_PATH}/ground_field.png`,
+    fallback: createTileSvg('%23232c25', '%232e3b30')
   },
   GROUND_ROAD: {
     id: 'ground_road',
-    symbol: '🛣️',
+    name: 'Packed Dirt Road',
+    symbol: '',
     walkable: true,
-    image: 'assets/tiles/ground_road.png',
+    image: `${ASSET_PATH}/ground_road.png`,
+    fallback: createTileSvg('%233e362a', '%232a241c')
   },
-  GROUND_RIVER: {
-    id: 'ground_river',
-    symbol: '~',
+  GROUND_STONE: {
+    id: 'ground_stone',
+    name: 'Flagstone Walkway',
+    symbol: '',
     walkable: true,
-    image: 'assets/tiles/ground_river.png',
+    image: `${ASSET_PATH}/stone_floor.png`,
+    fallback: createTileSvg('%23333a47', '%23262b35')
   },
-
-  // Walkable Interactive/Door Tiles
+  GROUND_WOOD: {
+    id: 'ground_wood',
+    name: 'Longhouse Plank',
+    symbol: '',
+    walkable: true,
+    image: `${ASSET_PATH}/ground_wooden_floor.png`,
+    fallback: createTileSvg('%234a3319', '%2338240f')
+  },
+  WATER_LAKE: {
+    id: 'water_lake',
+    name: 'Glacial Waters',
+    symbol: '🌊',
+    walkable: false,
+    image: `${ASSET_PATH}/water_lake.png`,
+    fallback: createTileSvg('%2319334d', '%23102234')
+  },
   DOORWAY_HOUSE: {
     id: 'door_house',
+    name: 'Longhouse Threshold',
     symbol: '🚪',
     walkable: true,
-    image: 'assets/tiles/doorway_house.png',
-    action: 'travel',
+    action: 'travel_house',
+    image: `${ASSET_PATH}/ground_road.png`,
+    fallback: createTileSvg('%23443322', '%23c9933b')
   },
   DOORWAY_CAVE: {
     id: 'door_cave',
+    name: 'Cave Mouth',
     symbol: '🕳️',
     walkable: true,
-    image: 'assets/tiles/doorway_cave.png',
-    action: 'travel',
-  },
-  BRIDGE: {
-    id: 'bridge',
-    symbol: '🌉',
-    walkable: true,
-    image: 'assets/tiles/bridge.png',
-    action: 'travel',
-  },
-  ROAD_BLOCK: {
-    id: 'road_block',
-    symbol: '🚧',
-    walkable: true,
-    image: 'assets/tiles/road_block.png',
-    action: 'block',
-  },
+    action: 'travel_cave',
+    image: `${ASSET_PATH}/rock_field.png`,
+    fallback: createTileSvg('%23161a22', '%235e81ac')
+  }
 };
 
 const ENCOUNTER_TYPES = [
   {
     type: 'enemy',
-    name: 'Draugr',
-    description: 'A restless undead warrior.',
-    challenge: 1,
+    name: 'Draugr Sentry',
+    description: 'An undead warrior clad in rusted chainmail, gripping a chipped spear.',
+    threat: 1,
+    hp: 40,
+    maxHp: 40,
+    attackPower: 7,
+    symbol: '💀'
   },
   {
     type: 'treasure',
-    name: 'Gilded Chest',
-    description: 'A chest containing unknown riches.',
-    challenge: 0,
+    name: 'Buried Norse Cache',
+    description: 'An iron-reinforced chest embedded into frozen earth.',
+    threat: 0,
+    symbol: '📦'
   },
   {
     type: 'npc',
-    name: 'Friendly Trader',
-    description: 'A traveling merchant willing to trade.',
-    challenge: 0,
-  },
+    name: 'Sigurd the Skald',
+    description: 'A weathered wanderer who trades chants, rumors, and forged goods.',
+    threat: 0,
+    symbol: '🧙'
+  }
 ];
 
-const GAME_PATHS = [
-  {
-    id: 'huscarl',
-    name: 'Huscarl',
-    focus: 'Strength',
-    desc: 'A martial fighter focused on strength and direct combat.',
+// Universal Gear Registry: Dynamically recalculates stats per class
+const GEAR_REGISTRY = {
+  seax: {
+    id: 'seax',
+    name: 'Iron Seax',
+    slot: 'mainhand',
+    rarity: 'common',
+    resolveStats: (cls) => {
+      if (cls === 'Warrior') return { attack: 8, rageBonus: 5 };
+      return { attack: 4, spellPower: 6, manaMax: 15 }; // Mage
+    }
   },
-  {
-    id: 'volva',
-    name: 'Völva',
-    focus: 'Intellect',
-    desc: 'A mystic focused on intellect and the manipulation of energies.',
+  leather: {
+    id: 'leather',
+    name: 'Boiled Leather',
+    slot: 'chest',
+    rarity: 'common',
+    resolveStats: (cls) => {
+      if (cls === 'Warrior') return { defense: 8, physicalBlock: 4 };
+      return { defense: 5, manaRegen: 3 };
+    }
   },
-  {
-    id: 'skirmisher',
-    name: 'Skirmisher',
-    focus: 'Agility',
-    desc: 'A quick fighter focused on agility and swift movement.',
+  shield: {
+    id: 'shield',
+    name: 'Oak Shield',
+    slot: 'offhand',
+    rarity: 'common',
+    resolveStats: (cls) => {
+      if (cls === 'Warrior') return { blockRate: 12, hpMax: 25 };
+      return { ward: 10, runeSpell: 5 };
+    }
   },
-];
-
-const BASE_STATS = {
-  strength: 10,
-  intellect: 10,
-  agility: 10,
-  stamina: 10,
+  wraps: {
+    id: 'wraps',
+    name: 'Fur Wraps',
+    slot: 'boots',
+    rarity: 'common',
+    resolveStats: () => ({ moveStaminaCost: -1 })
+  },
+  gungnir_spear: {
+    id: 'gungnir_spear',
+    name: 'Gungnir Fragment',
+    slot: 'mainhand',
+    rarity: 'legendary',
+    resolveStats: (cls) => {
+      if (cls === 'Warrior') return { attack: 30, physicalCrit: 15, hpMax: 80 };
+      return { spellPower: 45, lightningSurge: 25, manaMax: 100 };
+    }
+  }
 };
 
-// Define the time phases and their properties
-const DAY_CYCLE = [
-  {
-    start: 6,
-    end: 10,
-    emoji: '🌄',
-    id: 'Morning',
-    color: '#f7d084',
-    canRest: false,
-    danger: false,
-  },
-  {
-    start: 11,
-    end: 13,
-    emoji: '☀️',
-    id: 'Midday',
-    color: '#ffeb3b',
-    canRest: false,
-    danger: false,
-  },
-  {
-    start: 14,
-    end: 17,
-    emoji: '🌤️',
-    id: 'Day',
-    color: '#87ceeb',
-    canRest: false,
-    danger: false,
-  },
-  {
-    start: 18,
-    end: 23,
-    emoji: '🌥️',
-    id: 'Evening',
-    color: '#ffa07a',
-    canRest: true,
-    danger: false,
-  },
+const DAY_HOURS = [
+  { hour: 6, label: 'Dawn', color: '#8a5c36' },
+  { hour: 7, label: 'Morning', color: '#b87c42' },
+  { hour: 8, label: 'Morning', color: '#c9933b' },
+  { hour: 9, label: 'Morning', color: '#d8aa53' },
+  { hour: 10, label: 'Forenoon', color: '#e5bf6c' },
+  { hour: 11, label: 'Midday', color: '#ecd07f' },
+  { hour: 12, label: 'High Sun', color: '#ffea9f' },
+  { hour: 13, label: 'Afternoon', color: '#ecd07f' },
+  { hour: 14, label: 'Afternoon', color: '#e5bf6c' },
+  { hour: 15, label: 'Afternoon', color: '#d8aa53' },
+  { hour: 16, label: 'Afternoon', color: '#c9933b' },
+  { hour: 17, label: 'Dusk', color: '#b86b42' },
+  { hour: 18, label: 'Twilight', color: '#91534b' },
+  { hour: 19, label: 'Twilight', color: '#684058' },
+  { hour: 20, label: 'Evening', color: '#453556' },
+  { hour: 21, label: 'Nightfall', color: '#2d2d4a' }
 ];
-const NIGHT_CYCLE = [
-  {
-    start: 0,
-    end: 5,
-    emoji: '🌙',
-    id: 'Night',
-    color: '#1a3366',
-    canRest: true,
-    danger: true,
-  },
-];
-const ALL_PHASES = [...DAY_CYCLE, ...NIGHT_CYCLE];
 
-const gameState = {
-  screen: 'title',
-  currentLocation: 'Landfall', // Tracks the name of the current map
-  currentMap: [], // Stores the 2D array of tile objects
-  playerPos: { x: -1, y: -1 },
-  time: {
-    hour: 6, // Start at 6 AM (Morning)
-    day: 1,
+const NIGHT_HOURS = [
+  { hour: 22, label: 'Night', color: '#1a1f33' },
+  { hour: 23, label: 'Dead of Night', color: '#121626' },
+  { hour: 0, label: 'Midnight', color: '#0b0e1a' },
+  { hour: 1, label: 'Witching Hour', color: '#0e1120' },
+  { hour: 2, label: 'Deep Night', color: '#121626' },
+  { hour: 3, label: 'Wolf Hour', color: '#171c2f' },
+  { hour: 4, label: 'False Dawn', color: '#22233b' },
+  { hour: 5, label: 'First Light', color: '#4d373b' }
+];
+
+const CRAFTED_MAPS = {
+  Landfall: {
+    name: 'Landfall Coast',
+    spawn: { x: 9, y: 17 },
+    layout: [
+      [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+      [1, 8, 1, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 2, 2, 1],
+      [1, 0, 1, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 2, 2, 2, 1],
+      [1, 0, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 2, 2, 2, 2, 1],
+      [1, 0, 0, 0, 6, 6, 6, 0, 0, 3, 0, 0, 0, 0, 0, 2, 2, 2, 2, 1],
+      [1, 0, 0, 0, 6, 5, 6, 0, 0, 3, 3, 3, 3, 0, 0, 0, 2, 2, 2, 1],
+      [1, 0, 0, 0, 6, 7, 6, 0, 0, 3, 0, 0, 3, 0, 0, 0, 0, 2, 2, 1],
+      [1, 0, 0, 0, 0, 3, 0, 0, 0, 3, 0, 0, 3, 0, 0, 0, 0, 0, 2, 1],
+      [1, 0, 0, 0, 0, 3, 3, 3, 3, 3, 0, 0, 3, 3, 3, 0, 0, 0, 0, 1],
+      [1, 0, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 3, 0, 0, 0, 0, 1],
+      [1, 0, 0, 2, 2, 0, 0, 0, 0, 3, 0, 0, 0, 0, 3, 0, 0, 0, 0, 1],
+      [1, 0, 2, 2, 2, 2, 0, 0, 0, 3, 0, 0, 6, 6, 6, 6, 0, 0, 0, 1],
+      [1, 0, 2, 2, 2, 2, 0, 0, 0, 3, 0, 0, 6, 5, 5, 6, 0, 0, 0, 1],
+      [1, 0, 0, 2, 2, 0, 0, 0, 0, 3, 0, 0, 6, 7, 5, 6, 0, 0, 0, 1],
+      [1, 0, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 3, 0, 0, 0, 0, 0, 1],
+      [1, 0, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 3, 0, 0, 0, 0, 0, 1],
+      [1, 0, 0, 0, 0, 0, 0, 0, 0, 3, 3, 3, 3, 3, 0, 0, 0, 0, 0, 1],
+      [1, 0, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+      [1, 0, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+      [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
+    ]
   },
-  player: {
-    level: 1,
-    gender: null,
-    path: null,
-    maxHP: 100,
-    currentHP: 100,
-    stats: { ...BASE_STATS },
-  },
+  Longhouse: {
+    name: 'Chieftain Hall',
+    spawn: { x: 9, y: 16 },
+    layout: [
+      [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+      [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+      [1, 1, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 1, 1],
+      [1, 1, 6, 5, 5, 5, 5, 5, 5, 4, 4, 5, 5, 5, 5, 5, 5, 6, 1, 1],
+      [1, 1, 6, 5, 5, 5, 5, 5, 5, 4, 4, 5, 5, 5, 5, 5, 5, 6, 1, 1],
+      [1, 1, 6, 5, 5, 5, 5, 5, 5, 4, 4, 5, 5, 5, 5, 5, 5, 6, 1, 1],
+      [1, 1, 6, 5, 5, 4, 4, 5, 5, 4, 4, 5, 5, 4, 4, 5, 5, 6, 1, 1],
+      [1, 1, 6, 5, 5, 4, 4, 5, 5, 4, 4, 5, 5, 4, 4, 5, 5, 6, 1, 1],
+      [1, 1, 6, 5, 5, 5, 5, 5, 5, 4, 4, 5, 5, 5, 5, 5, 5, 6, 1, 1],
+      [1, 1, 6, 5, 5, 5, 5, 5, 5, 4, 4, 5, 5, 5, 5, 5, 5, 6, 1, 1],
+      [1, 1, 6, 5, 5, 5, 5, 5, 5, 4, 4, 5, 5, 5, 5, 5, 5, 6, 1, 1],
+      [1, 1, 6, 5, 5, 4, 4, 5, 5, 4, 4, 5, 5, 4, 4, 5, 5, 6, 1, 1],
+      [1, 1, 6, 5, 5, 4, 4, 5, 5, 4, 4, 5, 5, 4, 4, 5, 5, 6, 1, 1],
+      [1, 1, 6, 5, 5, 5, 5, 5, 5, 4, 4, 5, 5, 5, 5, 5, 5, 6, 1, 1],
+      [1, 1, 6, 5, 5, 5, 5, 5, 5, 4, 4, 5, 5, 5, 5, 5, 5, 6, 1, 1],
+      [1, 1, 6, 5, 5, 5, 5, 5, 5, 4, 4, 5, 5, 5, 5, 5, 5, 6, 1, 1],
+      [1, 1, 6, 6, 6, 6, 6, 6, 6, 7, 7, 6, 6, 6, 6, 6, 6, 6, 1, 1],
+      [1, 1, 1, 1, 1, 1, 1, 1, 1, 3, 3, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+      [1, 1, 1, 1, 1, 1, 1, 1, 1, 3, 3, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+      [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
+    ]
+  }
 };
 
-// --- DOM ELEMENTS ---
-const titleScreen = document.getElementById('title-screen');
-const charSelectScreen = document.getElementById('char-select-screen');
-const gameInterface = document.getElementById('game-interface');
-const gameMapDiv = document.getElementById('game-map');
-const encounterName = document.getElementById('encounter-name');
-const encounterDescription = document.getElementById('encounter-description');
-const encounterActions = document.getElementById('encounter-actions');
-const gameConsole = document.getElementById('game-console');
-const startGameButton = document.getElementById('start-game-button');
-const genderChoiceButtons = document.querySelectorAll(
-  '#gender-selection .choice-btn'
-);
-const genderChoiceText = document.getElementById('gender-choice-text');
-const classSelectionDiv = document.getElementById('class-selection');
-const confirmCharButton = document.getElementById('confirm-char-button');
-const sunMoonTracker = document.getElementById('sun-moon-tracker');
-const dayNightCycleDiv = document.getElementById('day-night-cycle');
-const locationName = document.getElementById('location-name');
-const nightCycleDiv = document.createElement('div');
-
-// --- UTILITY FUNCTIONS ---
-
-/** Writes a message to the game console. */
-function logToConsole(message) {
-  const p = document.createElement('p');
-  p.textContent = `> ${message}`;
-  gameConsole.prepend(p);
-  while (gameConsole.children.length > 20) {
-    gameConsole.removeChild(gameConsole.lastChild);
+function decodeTile(num) {
+  switch (num) {
+    case 1: return TILE_TYPES.WALL_ROCK;
+    case 2: return TILE_TYPES.WATER_LAKE;
+    case 3: return TILE_TYPES.GROUND_ROAD;
+    case 4: return TILE_TYPES.GROUND_STONE;
+    case 5: return TILE_TYPES.GROUND_WOOD;
+    case 6: return TILE_TYPES.WALL_HOUSE;
+    case 7: return TILE_TYPES.DOORWAY_HOUSE;
+    case 8: return TILE_TYPES.DOORWAY_CAVE;
+    case 0:
+    default: return TILE_TYPES.GROUND_FIELD;
   }
 }
 
-/** Returns a random integer between min and max (inclusive). */
-function getRandomInt(min, max) {
-  return Math.floor(Math.random() * (max - min + 1)) + min;
+// Global Game Engine State
+let currentHero = null;
+let activeMapData = null;
+
+// Multi-Character Storage Helpers
+function getSavedRoster() {
+  const raw = localStorage.getItem(STORAGE_ROSTER_KEY);
+  if (!raw) return [];
+  try { return JSON.parse(raw); } catch (e) { return []; }
 }
 
-// --- TIME & DAY/NIGHT CYCLE LOGIC (Stable) ---
-// ... (The time functions remain the same as the last version)
-function getCurrentPhase() {
-  const { hour } = gameState.time;
-
-  const currentPhase = ALL_PHASES.find(
-    (phase) =>
-      (hour >= phase.start && hour <= phase.end) ||
-      (phase.start > phase.end && (hour >= phase.start || hour <= phase.end))
-  );
-
-  return currentPhase || NIGHT_CYCLE[0];
+function saveRoster(roster) {
+  localStorage.setItem(STORAGE_ROSTER_KEY, JSON.stringify(roster));
 }
 
-function generateTimeBar() {
-  dayNightCycleDiv.innerHTML = '';
+function persistCurrentHero() {
+  if (!currentHero) return;
+  const roster = getSavedRoster();
+  const idx = roster.findIndex(h => h.id === currentHero.id);
+  if (idx >= 0) {
+    roster[idx] = currentHero;
+  } else {
+    roster.push(currentHero);
+  }
+  saveRoster(roster);
+  localStorage.setItem(STORAGE_CURRENT_HERO_KEY, currentHero.id);
+}
 
-  dayNightCycleDiv.classList.add('time-bar');
-  dayNightCycleDiv.id = 'day-cycle-bar';
+// DOM Interface References
+const screens = {
+  title: document.getElementById('title-screen'),
+  roster: document.getElementById('roster-screen'),
+  charCreate: document.getElementById('char-create-screen'),
+  gameInterface: document.getElementById('game-interface')
+};
 
-  DAY_CYCLE.forEach((phase) => {
-    const numHours = phase.end - phase.start + 1;
-    for (let h = 0; h < numHours; h++) {
-      const segment = document.createElement('div');
-      segment.classList.add('hour-segment');
-      segment.dataset.hour = phase.start + h;
-      segment.style.backgroundColor = phase.color;
-      segment.title = `${phase.start + h}:00 - ${phase.id}`;
-      dayNightCycleDiv.appendChild(segment);
-    }
+const dayCycleBar = document.getElementById('day-cycle-bar');
+const nightCycleBar = document.getElementById('night-cycle-bar');
+const sunMoonTracker = document.getElementById('sun-moon-tracker');
+const locationName = document.getElementById('location-name');
+const cyclePhaseLabel = document.getElementById('cycle-phase-label');
+const consoleOutput = document.getElementById('console-output');
+const gameMap = document.getElementById('game-map');
+
+// 24-Hour Cycle Construction
+function buildTimeSegments() {
+  dayCycleBar.innerHTML = '';
+  nightCycleBar.innerHTML = '';
+
+  DAY_HOURS.forEach(entry => {
+    const seg = document.createElement('div');
+    seg.classList.add('hour-segment');
+    seg.dataset.hour = entry.hour;
+    seg.style.backgroundColor = entry.color;
+    seg.title = `${entry.hour}:00 - ${entry.label}`;
+    dayCycleBar.appendChild(seg);
   });
 
-  const nightPhase = NIGHT_CYCLE[0];
-  nightCycleDiv.classList.add('time-bar');
-  nightCycleDiv.id = 'night-cycle-bar';
-  nightCycleDiv.style.gridTemplateColumns = `repeat(6, 1fr)`;
-
-  for (let h = 0; h < 6; h++) {
-    const segment = document.createElement('div');
-    segment.classList.add('hour-segment');
-    segment.dataset.hour = h;
-    segment.style.backgroundColor = nightPhase.color;
-    segment.title = `${h}:00 - ${nightPhase.id}`;
-    nightCycleDiv.appendChild(segment);
-  }
-
-  dayNightCycleDiv.parentNode.insertBefore(
-    nightCycleDiv,
-    dayNightCycleDiv.nextSibling
-  );
-  dayNightCycleDiv.parentNode.insertBefore(sunMoonTracker, dayNightCycleDiv);
+  NIGHT_HOURS.forEach(entry => {
+    const seg = document.createElement('div');
+    seg.classList.add('hour-segment');
+    seg.dataset.hour = entry.hour;
+    seg.style.backgroundColor = entry.color;
+    seg.title = `${entry.hour}:00 - ${entry.label}`;
+    nightCycleBar.appendChild(seg);
+  });
 }
 
-function updateTimeDisplay(oldPhaseId = null) {
-  const { hour, day } = gameState.time;
-  const currentPhase = getCurrentPhase();
+function updateTimeTracker() {
+  if (!currentHero) return;
+  const { hour, day } = currentHero.time;
+  const isNight = hour >= 22 || hour <= 5;
+  const activeHourObj = [...DAY_HOURS, ...NIGHT_HOURS].find(h => h.hour === hour);
+  const phaseName = activeHourObj ? activeHourObj.label : (isNight ? 'Night' : 'Day');
 
-  let activeBar;
-  let hourOffset;
+  cyclePhaseLabel.textContent = `${phaseName} • Day ${day} (${String(hour).padStart(2, '0')}:00)`;
+  locationName.textContent = currentHero.currentLocation;
 
-  if (currentPhase.id === 'Night') {
-    activeBar = nightCycleDiv;
-    dayNightCycleDiv.style.opacity = 0.5;
-    nightCycleDiv.style.opacity = 1;
-    hourOffset = hour;
+  const activeBar = isNight ? nightCycleBar : dayCycleBar;
+  const inactiveBar = isNight ? dayCycleBar : nightCycleBar;
+  activeBar.style.opacity = '1';
+  inactiveBar.style.opacity = '0.35';
+
+  const segments = Array.from(activeBar.children);
+  const currentSeg = segments.find(s => parseInt(s.dataset.hour, 10) === hour);
+
+  if (currentSeg) {
+    const segRect = currentSeg.getBoundingClientRect();
+    const parentRect = activeBar.parentElement.getBoundingClientRect();
+    const relativeCenter = (segRect.left - parentRect.left) + (segRect.width / 2);
+    sunMoonTracker.style.left = `${relativeCenter}px`;
+    sunMoonTracker.textContent = isNight ? '🌙' : '☀️';
+  }
+}
+
+function logEvent(msg) {
+  const p = document.createElement('p');
+  p.textContent = `> ${msg}`;
+  consoleOutput.prepend(p);
+  while (consoleOutput.children.length > 35) {
+    consoleOutput.removeChild(consoleOutput.lastChild);
+  }
+}
+
+// Character Vitals & Equipment UI
+function updateVitals() {
+  if (!currentHero) return;
+  const p = currentHero;
+
+  document.getElementById('hud-player-name').textContent = p.name;
+  document.getElementById('hud-player-class').textContent = p.class;
+  document.getElementById('hud-player-gender').textContent = p.gender;
+
+  // HP Bar
+  document.getElementById('hp-text').textContent = `${Math.round(p.currentHP)} / ${p.maxHP}`;
+  document.getElementById('hp-meter-bar').style.width = `${Math.max(0, (p.currentHP / p.maxHP) * 100)}%`;
+
+  // Secondary Resource Bar (Warrior = Stamina/Rage, Mage = Seiðr/Mana)
+  const resourceLabel = document.getElementById('resource-name-label');
+  const resourceText = document.getElementById('resource-text');
+  const resourceBar = document.getElementById('resource-meter-bar');
+
+  if (p.class === 'Warrior') {
+    resourceLabel.textContent = 'Stamina / Rage';
+    resourceBar.className = 'meter-bar stamina-bar';
+    resourceText.textContent = `${Math.round(p.resource)} / ${p.maxResource}`;
+    resourceBar.style.width = `${Math.max(0, (p.resource / p.maxResource) * 100)}%`;
   } else {
-    activeBar = dayNightCycleDiv;
-    dayNightCycleDiv.style.opacity = 1;
-    nightCycleDiv.style.opacity = 0.5;
-    hourOffset = hour - 6;
+    resourceLabel.textContent = 'Mana / Seiðr';
+    resourceBar.className = 'meter-bar mana-bar';
+    resourceText.textContent = `${Math.round(p.resource)} / ${p.maxResource}`;
+    resourceBar.style.width = `${Math.max(0, (p.resource / p.maxResource) * 100)}%`;
   }
 
-  const segmentWidth = activeBar.offsetWidth / activeBar.childElementCount;
-  const centerPosition = hourOffset * segmentWidth + segmentWidth / 2;
+  // Exhaustion Bar
+  document.getElementById('exhaustion-text').textContent = `${Math.round(p.exhaustion)}%`;
+  document.getElementById('exhaustion-meter-bar').style.width = `${p.exhaustion}%`;
 
-  const trackerWidth = sunMoonTracker.offsetWidth;
-  const barRect = activeBar.getBoundingClientRect();
-  const parentRect = dayNightCycleDiv.parentNode.getBoundingClientRect();
+  // Attributes
+  const attrBox = document.getElementById('attribute-list');
+  attrBox.innerHTML = '';
+  Object.entries(p.stats).forEach(([stat, val]) => {
+    const pill = document.createElement('div');
+    pill.className = 'stat-pill';
+    pill.innerHTML = `<span>${stat.toUpperCase()}</span><strong>${val}</strong>`;
+    attrBox.appendChild(pill);
+  });
 
-  const leftPosition =
-    barRect.left - parentRect.left + centerPosition - trackerWidth / 2;
-  const topPosition = barRect.top - parentRect.top - 15;
-
-  sunMoonTracker.style.left = `${leftPosition}px`;
-  sunMoonTracker.style.top = `${topPosition}px`;
-  sunMoonTracker.textContent = currentPhase.emoji;
-
-  locationName.textContent = `${gameState.currentLocation} - ${
-    currentPhase.id
-  } - Day ${day}, ${hour.toString().padStart(2, '0')}:00`;
-
-  if (oldPhaseId && oldPhaseId !== currentPhase.id) {
-    logToConsole(
-      `The time changes. It is now ${currentPhase.id}. ${
-        currentPhase.danger ? 'Be wary of the shadows!' : ''
-      }`
-    );
-  }
+  // Gear Doll
+  Object.entries(p.gear).forEach(([slot, itemId]) => {
+    const slotEl = document.querySelector(`#slot-${slot} span`);
+    if (slotEl) {
+      if (itemId && GEAR_REGISTRY[itemId]) {
+        const item = GEAR_REGISTRY[itemId];
+        const stats = item.resolveStats(p.class);
+        const statLabel = Object.entries(stats).map(([k, v]) => `+${v} ${k}`).join(', ');
+        slotEl.textContent = `${item.name} (${statLabel})`;
+      } else {
+        slotEl.textContent = 'Empty';
+      }
+    }
+  });
 }
 
 function advanceTime(hours = 1) {
-  const oldPhase = getCurrentPhase();
-
-  gameState.time.hour += hours;
-
-  if (gameState.time.hour >= 24) {
-    gameState.time.hour -= 24;
-    gameState.time.day++;
+  currentHero.time.hour += hours;
+  while (currentHero.time.hour >= 24) {
+    currentHero.time.hour -= 24;
+    currentHero.time.day += 1;
   }
 
-  setTimeout(() => updateTimeDisplay(oldPhase.id), 10);
+  // Exhaustion drains secondary resource & eventually HP
+  const exhaustionMultiplier = 1 + (currentHero.exhaustion / 100);
+  currentHero.resource = Math.max(0, currentHero.resource - (hours * 2.5 * exhaustionMultiplier));
+  currentHero.exhaustion = Math.min(100, currentHero.exhaustion + (hours * 1.5));
 
-  if (
-    gameState.screen === 'game-interface' &&
-    !gameState.currentMap[gameState.playerPos.y][gameState.playerPos.x]
-      .currentEncounter
-  ) {
-    checkRestOption();
+  if (currentHero.resource === 0) {
+    currentHero.currentHP = Math.max(1, currentHero.currentHP - (hours * 3));
+    logEvent('Your body collapses from fatigue! Vitals drain.');
   }
+
+  updateTimeTracker();
+  updateVitals();
+  persistCurrentHero();
 }
 
-function checkRestOption() {
-  const { hour } = gameState.time;
-  const currentPhase = getCurrentPhase();
+// Map Engine
+function loadMap(mapName) {
+  const blueprint = CRAFTED_MAPS[mapName] || CRAFTED_MAPS.Landfall;
+  currentHero.currentLocation = blueprint.name;
 
-  const isRestTime = hour === 23 || currentPhase.id === 'Night';
-
-  const restButtonId = 'rest-action-button';
-  document.getElementById(restButtonId)?.remove();
-
-  if (isRestTime) {
-    const restButton = document.createElement('button');
-    restButton.id = restButtonId;
-
-    restButton.textContent = `Rest until Morning (Heal & Skip)`;
-
-    restButton.addEventListener('click', restHandler);
-
-    encounterActions.insertBefore(
-      restButton,
-      encounterActions.firstChild || null
-    );
-
-    logToConsole(`It is time to rest. You may rest to recover health.`);
-  }
-}
-
-function restHandler() {
-  const { hour } = gameState.time;
-  const currentPhase = getCurrentPhase();
-
-  const MORNING_HOUR = 6;
-  const NIGHT_ATTACK_CHANCE = 20;
-
-  const hoursToSkip = (MORNING_HOUR - hour + 24) % 24;
-
-  const BASE_HEAL_PER_HOUR = gameState.player.maxHP * 0.05;
-  let totalHealAmount = BASE_HEAL_PER_HOUR * hoursToSkip;
-  let restedSafely = true;
-
-  if (currentPhase.id === 'Night') {
-    logToConsole(
-      `You attempt to rest during the dangerous ${currentPhase.id} hours...`
-    );
-
-    if (getRandomInt(1, 100) <= NIGHT_ATTACK_CHANCE) {
-      logToConsole('A shadow attacks while you rest! You are jolted awake!');
-      takeDamage(10);
-      restedSafely = false;
-    }
-  } else {
-    logToConsole(`You settle down for a safe rest during the late Evening.`);
-  }
-
-  if (restedSafely) {
-    gameState.player.currentHP = Math.min(
-      gameState.player.maxHP,
-      gameState.player.currentHP + totalHealAmount
-    );
-    updateHealthDisplay();
-    logToConsole(
-      `You feel well-rested and recover ${Math.round(totalHealAmount)} HP.`
-    );
-  } else {
-    logToConsole(
-      'The attack disturbed your rest! You gain no healing from this attempt.'
-    );
-  }
-
-  advanceTime(hoursToSkip);
-  logToConsole(`It is now Day ${gameState.time.day}, 06:00 (Morning).`);
-
-  document.getElementById('rest-action-button')?.remove();
-}
-
-// --- MAP GENERATION & MOVEMENT LOGIC (MODIFIED) ---
-
-// === New TileData Constructor (for Persistence) ===
-class TileData {
-  constructor(x, y, type, initialEncounter = null) {
-    this.x = x;
-    this.y = y;
-    this.type = type; // e.g., TILE_TYPES.GROUND_FIELD
-    this.initialEncounter = initialEncounter; // What started here
-    this.currentEncounter = initialEncounter; // What is here now (null after clearing)
-    this.visited = false; // NEW: Track visited status for highlighting
-    this.actionTaken = false; // e.g., Chest opened, NPC traded with
-  }
-}
-
-/**
- * Generates the map using a Random Walk algorithm to ensure a continuous path.
- */
-function generateMap(
-  mapId = 'Landfall',
-  width = MAP_WIDTH,
-  height = MAP_HEIGHT
-) {
-  gameState.currentLocation = mapId;
-  const newMap = [];
-  const tilesToVisit = new Set();
-
-  // 1. Initialize map with the default non-walkable wall
-  for (let y = 0; y < height; y++) {
-    newMap[y] = [];
-    for (let x = 0; x < width; x++) {
-      newMap[y][x] = new TileData(x, y, TILE_TYPES.WALL_ROCK);
+  const grid = [];
+  for (let y = 0; y < MAP_HEIGHT; y++) {
+    grid[y] = [];
+    for (let x = 0; x < MAP_WIDTH; x++) {
+      const tileCode = blueprint.layout[y][x];
+      grid[y][x] = {
+        x, y,
+        type: decodeTile(tileCode),
+        encounter: null,
+        visited: false
+      };
     }
   }
 
-  // 2. Start the Random Walk in the center
-  let currentX = Math.floor(width / 2);
-  let currentY = Math.floor(height / 2);
-  tilesToVisit.add(`${currentX},${currentY}`);
-
-  const PATH_LENGTH = width * height * 0.4; // Path covers 40% of the total area
-
-  for (let i = 0; i < PATH_LENGTH; i++) {
-    // Mark the current tile as walkable ground
-    newMap[currentY][currentX].type = TILE_TYPES.GROUND_FIELD;
-
-    // Choose a random adjacent direction (Up, Down, Left, Right)
-    const moves = [
-      { dx: 0, dy: -1 },
-      { dx: 0, dy: 1 },
-      { dx: -1, dy: 0 },
-      { dx: 1, dy: 0 },
-    ];
-    const { dx, dy } = moves[getRandomInt(0, 3)];
-
-    let nextX = currentX + dx;
-    let nextY = currentY + dy;
-
-    if (nextX > 1 && nextX < width - 2 && nextY > 1 && nextY < height - 2) {
-      currentX = nextX;
-      currentY = nextY;
-      tilesToVisit.add(`${currentX},${currentY}`);
-    }
+  // Pre-seed known encounters on the crafted map
+  if (mapName === 'Landfall') {
+    grid[3][3].encounter = ENCOUNTER_TYPES[0]; // Draugr
+    grid[8][14].encounter = ENCOUNTER_TYPES[1]; // Buried Chest
+    grid[5][10].encounter = ENCOUNTER_TYPES[2]; // Sigurd Skald
   }
 
-  // 3. Add Encounters and the Doorway only to walkable tiles
-  let doorwayPlaced = false;
-  const WALKABLE_TILES = Array.from(tilesToVisit);
-
-  for (const coord of WALKABLE_TILES) {
-    const [x, y] = coord.split(',').map(Number);
-    const tile = newMap[y][x];
-
-    if (getRandomInt(1, 100) <= 3) {
-      const encounter =
-        ENCOUNTER_TYPES[getRandomInt(0, ENCOUNTER_TYPES.length - 1)];
-      tile.initialEncounter = encounter;
-      tile.currentEncounter = encounter;
-    }
-
-    if (!doorwayPlaced && getRandomInt(1, 100) === 1 && y > height * 0.75) {
-      tile.type = TILE_TYPES.DOORWAY_HOUSE;
-      tile.initialEncounter = null;
-      tile.currentEncounter = null;
-      doorwayPlaced = true;
-      logToConsole(`A path to a new location has been hidden at (${x}, ${y}).`);
-    }
-  }
-
-  gameState.currentMap = newMap;
-  // 4. Set player start position (randomly picked from path)
-  if (WALKABLE_TILES.length > 0) {
-    const [startX, startY] = WALKABLE_TILES[
-      getRandomInt(0, WALKABLE_TILES.length - 1)
-    ]
-      .split(',')
-      .map(Number);
-    gameState.playerPos = { x: startX, y: startY };
-    // Mark the starting tile as visited
-    gameState.currentMap[startY][startX].visited = true;
-  }
-}
-
-/** Handles moving the player to a new map/level. */
-function travelToNewMap(doorwayType) {
-  let newMapId;
-  let newWidth, newHeight;
-  let newTileType;
-
-  if (doorwayType === TILE_TYPES.DOORWAY_HOUSE) {
-    newMapId = "Trader's Hut";
-    newWidth = getRandomInt(8, 12);
-    newHeight = getRandomInt(8, 12);
-    newTileType = TILE_TYPES.GROUND_STONE;
-    logToConsole(
-      `You step through the ${doorwayType.id}, entering the Trader's Hut.`
-    );
-  } else if (doorwayType === TILE_TYPES.DOORWAY_CAVE) {
-    newMapId = 'Dark Cavern';
-    newWidth = 20;
-    newHeight = 60;
-    newTileType = TILE_TYPES.WALL_CAVE;
-    logToConsole(`You descend into the cold ${doorwayType.id}.`);
-  } else {
-    logToConsole(`ERROR: Unhandled doorway type: ${doorwayType.id}`);
-    return;
-  }
-
-  generateMap(newMapId, newWidth, newHeight);
-  renderMap();
-  logToConsole(`You arrive at ${gameState.currentLocation}.`);
+  activeMapData = grid;
 }
 
 function renderMap() {
-  gameMapDiv.innerHTML = '';
-  gameMapDiv.style.gridTemplateRows = `repeat(${gameState.currentMap.length}, 1fr)`;
+  gameMap.innerHTML = '';
+  const { x: px, y: py } = currentHero.pos;
 
-  // Determine walkable tiles for highlighting
-  const adjacentWalkableTiles = getAdjacentWalkableTiles(
-    gameState.playerPos.x,
-    gameState.playerPos.y
-  );
+  for (let y = 0; y < MAP_HEIGHT; y++) {
+    for (let x = 0; x < MAP_WIDTH; x++) {
+      const tile = activeMapData[y][x];
+      const cell = document.createElement('div');
+      cell.className = 'tile';
 
-  for (let y = 0; y < gameState.currentMap.length; y++) {
-    for (let x = 0; x < gameState.currentMap[0].length; x++) {
-      const tileData = gameState.currentMap[y][x];
-      const tileElement = document.createElement('div');
+      const bgImg = tile.type.image || tile.type.fallback;
+      cell.style.backgroundImage = `url("${bgImg}")`;
 
-      tileElement.classList.add('tile');
-      tileElement.dataset.x = x;
-      tileElement.dataset.y = y;
-      tileElement.title = `(${x}, ${y}) - ${tileData.type.id}`;
+      if (x === px && y === py) cell.classList.add('player');
+      if (tile.visited) cell.classList.add('visited');
 
-      // === NEW LOGIC: Always display the tile image ===
-      tileElement.style.backgroundImage = `url(${tileData.type.image})`;
-
-      // Highlight player's current position
-      if (x === gameState.playerPos.x && y === gameState.playerPos.y) {
-        tileElement.classList.add('player');
-      }
-      // Highlight visited tiles
-      if (tileData.visited) {
-        tileElement.classList.add('visited');
-      }
-      // Highlight adjacent, walkable tiles
-      const isAdjacentWalkable = adjacentWalkableTiles.some(
-        (pos) => pos.x === x && pos.y === y
-      );
-      if (isAdjacentWalkable) {
-        tileElement.classList.add('can-move');
+      const isAdjacent = Math.abs(x - px) + Math.abs(y - py) === 1;
+      if (isAdjacent && tile.type.walkable) {
+        cell.classList.add('can-move');
+        cell.addEventListener('click', () => stepTo(x, y));
       }
 
-      // Add symbol for encounters/objects
-      if (tileData.currentEncounter) {
-        const symbol = tileData.currentEncounter.type.charAt(0).toUpperCase();
-        tileElement.textContent = symbol;
-      } else if (tileData.type.action === 'travel') {
-        tileElement.textContent = tileData.type.symbol;
+      // Hover to inspect before moving
+      cell.addEventListener('mouseenter', () => inspectTile(tile, false));
+
+      if (tile.encounter) {
+        cell.textContent = tile.encounter.symbol;
+      } else if (tile.type.symbol && !tile.type.image) {
+        cell.textContent = tile.type.symbol;
       }
 
-      tileElement.addEventListener('click', handleTileClick);
-
-      gameMapDiv.appendChild(tileElement);
+      gameMap.appendChild(cell);
     }
   }
-  centerMapOnPlayer();
 }
 
-/** Gets a list of all adjacent, walkable tile coordinates. */
-function getAdjacentWalkableTiles(x, y) {
-  const tiles = [];
-  const moves = [
-    { dx: 0, dy: -1 },
-    { dx: 0, dy: 1 },
-    { dx: -1, dy: 0 },
-    { dx: 1, dy: 0 },
-  ];
+function stepTo(nx, ny) {
+  const tile = activeMapData[ny][nx];
+  if (!tile.type.walkable) return;
 
-  for (const { dx, dy } of moves) {
-    const checkX = x + dx;
-    const checkY = y + dy;
+  advanceTime(1);
+  currentHero.pos = { x: nx, y: ny };
+  tile.visited = true;
+  renderMap();
+  inspectTile(tile, true);
+}
 
-    if (
-      checkX >= 0 &&
-      checkX < MAP_WIDTH &&
-      checkY >= 0 &&
-      checkY < MAP_HEIGHT
-    ) {
-      const tileData = gameState.currentMap[checkY][checkX];
-      if (tileData && tileData.type.walkable) {
-        tiles.push({ x: checkX, y: checkY });
+// Right-Hand Unit & Terrain Inspection Card
+function inspectTile(tile, isInteracting = false) {
+  const typeBadge = document.getElementById('inspector-type-badge');
+  const targetIcon = document.getElementById('target-icon');
+  const targetName = document.getElementById('target-name');
+  const targetSubtitle = document.getElementById('target-subtitle');
+  const statsBlock = document.getElementById('target-stats-block');
+  const targetDesc = document.getElementById('target-description');
+  const actionsList = document.getElementById('inspector-actions');
+  actionsList.innerHTML = '';
+
+  const isNight = currentHero.time.hour >= 22 || currentHero.time.hour <= 5;
+
+  if (tile.encounter) {
+    const enc = tile.encounter;
+    targetIcon.textContent = enc.symbol;
+    targetName.textContent = enc.name;
+    targetDesc.textContent = enc.description;
+
+    if (enc.type === 'enemy') {
+      typeBadge.textContent = isNight ? 'Frenzied Foe' : 'Hostile';
+      targetSubtitle.textContent = isNight ? 'Stalking at Night (+50% Power)' : 'Undead Warrior';
+      statsBlock.classList.remove('hidden');
+
+      const nightBonus = isNight ? 1.5 : 1.0;
+      document.getElementById('target-threat').textContent = `${enc.threat} ${isNight ? '(Night Buffed)' : ''}`;
+      document.getElementById('target-hp').textContent = `${enc.hp} / ${enc.maxHp}`;
+      document.getElementById('target-attack').textContent = `${Math.round(enc.attackPower * nightBonus)} (Physical)`;
+
+      if (isInteracting) {
+        const battleBtn = document.createElement('button');
+        battleBtn.className = 'rune-btn';
+        battleBtn.textContent = `Strike with ${currentHero.gear.mainhand ? 'Weapon' : 'Fists'}`;
+        battleBtn.onclick = () => {
+          logEvent(`You engaged in skirmish with ${enc.name}!`);
+          tile.encounter = null;
+          renderMap();
+          inspectTile(tile, false);
+        };
+        actionsList.appendChild(battleBtn);
+      }
+    } else if (enc.type === 'npc') {
+      typeBadge.textContent = 'Friendly NPC';
+      targetSubtitle.textContent = 'Skald & Merchant';
+      statsBlock.classList.add('hidden');
+
+      if (isInteracting) {
+        const chatBtn = document.createElement('button');
+        chatBtn.className = 'rune-btn';
+        chatBtn.textContent = 'Speak with Sigurd';
+        chatBtn.onclick = () => {
+          logEvent('Sigurd smiles: "Rest your blade, traveler. The night is long."');
+        };
+        actionsList.appendChild(chatBtn);
+
+        const tradeBtn = document.createElement('button');
+        tradeBtn.className = 'rune-btn secondary-btn';
+        tradeBtn.textContent = 'Barter Supplies';
+        tradeBtn.onclick = () => {
+          logEvent('Sigurd reveals his trade satchel [Shops opening next milestone].');
+        };
+        actionsList.appendChild(tradeBtn);
+      }
+    } else {
+      typeBadge.textContent = 'Cache';
+      targetSubtitle.textContent = 'Buried Loot';
+      statsBlock.classList.add('hidden');
+
+      if (isInteracting) {
+        const openBtn = document.createElement('button');
+        openBtn.className = 'rune-btn';
+        openBtn.textContent = 'Pry Chest Open';
+        openBtn.onclick = () => {
+          logEvent('You opened the chest and secured cold iron ore!');
+          tile.encounter = null;
+          renderMap();
+          inspectTile(tile, false);
+        };
+        actionsList.appendChild(openBtn);
       }
     }
-  }
-  return tiles;
-}
+  } else if (tile.type.action === 'travel_house') {
+    typeBadge.textContent = 'Structure';
+    targetIcon.textContent = '🚪';
+    targetName.textContent = 'Longhouse Threshold';
+    targetSubtitle.textContent = 'Carved Timber Entry';
+    statsBlock.classList.add('hidden');
+    targetDesc.textContent = 'Heavy oak planks shield the hall against the relentless northern wind.';
 
-function centerMapOnPlayer() {
-  const playerTile = document.querySelector('.tile.player');
-  if (playerTile) {
-    const tileRect = playerTile.getBoundingClientRect();
-    const mapRect = gameMapDiv.getBoundingClientRect();
-
-    gameMapDiv.scrollTop =
-      playerTile.offsetTop - mapRect.height / 2 + tileRect.height / 2;
-    gameMapDiv.scrollLeft =
-      playerTile.offsetLeft - mapRect.width / 2 + tileRect.width / 2;
-  }
-}
-
-function handleTileClick(event) {
-  const targetTile = event.currentTarget;
-  const targetX = parseInt(targetTile.dataset.x);
-  const targetY = parseInt(targetTile.dataset.y);
-
-  const dx = Math.abs(targetX - gameState.playerPos.x);
-  const dy = Math.abs(targetY - gameState.playerPos.y);
-
-  if ((dx === 1 && dy === 0) || (dx === 0 && dy === 1)) {
-    movePlayer(targetX, targetY);
+    if (isInteracting) {
+      const enterBtn = document.createElement('button');
+      enterBtn.className = 'rune-btn';
+      enterBtn.textContent = currentHero.currentLocation.includes('Coast') ? 'Enter Chieftain Hall' : 'Exit to Coast';
+      enterBtn.onclick = () => {
+        if (currentHero.currentLocation.includes('Coast')) {
+          loadMap('Longhouse');
+          currentHero.pos = { x: 9, y: 15 };
+        } else {
+          loadMap('Landfall');
+          currentHero.pos = { x: 5, y: 7 };
+        }
+        activeMapData[currentHero.pos.y][currentHero.pos.x].visited = true;
+        renderMap();
+        updateTimeTracker();
+        inspectTile(activeMapData[currentHero.pos.y][currentHero.pos.x], true);
+        logEvent(`Crossed threshold into ${currentHero.currentLocation}.`);
+      };
+      actionsList.appendChild(enterBtn);
+    }
   } else {
-    logToConsole('You can only move one step (Up, Down, Left, or Right).');
+    typeBadge.textContent = 'Terrain';
+    targetIcon.textContent = tile.type.symbol || '🏕️';
+    targetName.textContent = tile.type.name;
+    targetSubtitle.textContent = tile.type.walkable ? 'Traversable Terrain' : 'Impassable Obstacle';
+    statsBlock.classList.add('hidden');
+    targetDesc.textContent = tile.type.walkable
+      ? 'An open stretch of northern wild. Safe to set up camp and rekindle your fire.'
+      : 'Natural barriers block direct progress here.';
+
+    if (isInteracting && tile.type.walkable) {
+      const restBtn = document.createElement('button');
+      restBtn.className = 'rune-btn';
+      restBtn.textContent = 'Make Camp & Rest (6h)';
+      restBtn.onclick = () => restHero();
+      actionsList.appendChild(restBtn);
+    }
   }
 }
 
-function movePlayer(newX, newY) {
-  const targetTileData = gameState.currentMap[newY][newX];
+function restHero() {
+  const isNight = currentHero.time.hour >= 22 || currentHero.time.hour <= 5;
+  logEvent('You light a campfire and rest your bones...');
 
-  if (!targetTileData.type.walkable) {
-    logToConsole(`You cannot walk on ${targetTileData.type.id}.`);
+  if (isNight && Math.random() < 0.28) {
+    logEvent('A nocturnal predator stalks the camp! Your rest was broken.');
+    currentHero.currentHP = Math.max(5, currentHero.currentHP - 18);
+  } else {
+    currentHero.resource = currentHero.maxResource;
+    currentHero.exhaustion = Math.max(0, currentHero.exhaustion - 45);
+    currentHero.currentHP = Math.min(currentHero.maxHP, currentHero.currentHP + 35);
+    logEvent('You awaken with clear eyes, restored energy, and eased exhaustion.');
+  }
+
+  advanceTime(6);
+}
+
+// Screen Switcher
+function switchScreen(screenKey) {
+  Object.values(screens).forEach(el => el.classList.add('hidden'));
+  screens[screenKey].classList.remove('hidden');
+}
+
+// Character Roster Rendering
+function renderRosterScreen() {
+  const slotsList = document.getElementById('character-slots-list');
+  slotsList.innerHTML = '';
+  const roster = getSavedRoster();
+
+  if (roster.length === 0) {
+    slotsList.innerHTML = `<p class="subtext">No sagas recorded yet. Forge your first warrior!</p>`;
     return;
   }
 
-  // 1. Advance time (1 tile move = 1 hour)
-  advanceTime();
-
-  // 2. Update player position
-  gameState.playerPos = { x: newX, y: newY };
-
-  // 3. Mark the new tile as visited
-  targetTileData.visited = true;
-
-  // 4. Render and center the map
-  renderMap();
-  logToConsole(`Moved to (${newX}, ${newY}).`);
-
-  // 5. Check for and display encounter/action
-  checkAndDisplayTileAction(targetTileData);
-}
-
-/** Checks the current tile for an encounter or a doorway action. */
-function checkAndDisplayTileAction(tileData) {
-  document.getElementById('rest-action-button')?.remove();
-
-  if (tileData.currentEncounter) {
-    const encounter = tileData.currentEncounter;
-
-    encounterName.textContent = encounter.name;
-    encounterDescription.textContent = encounter.description;
-
-    encounterActions.innerHTML = '';
-    const actionButton = document.createElement('button');
-    actionButton.textContent = `Interact with ${encounter.name}`;
-
-    actionButton.addEventListener('click', () => {
-      logToConsole(
-        `You interact with the ${encounter.name}. The encounter fades.`
-      );
-      tileData.currentEncounter = null;
-      renderMap();
-      checkAndDisplayTileAction(tileData);
-    });
-    encounterActions.appendChild(actionButton);
-
-    logToConsole(`You have found a ${encounter.type}: ${encounter.name}!`);
-  } else if (tileData.type.action === 'travel') {
-    encounterName.textContent = tileData.type.id.replace('_', ' ');
-    encounterDescription.textContent = `This ${tileData.type.id} leads to a new area.`;
-
-    encounterActions.innerHTML = '';
-    const travelButton = document.createElement('button');
-    travelButton.textContent = `Enter the ${tileData.type.id}`;
-    travelButton.addEventListener('click', () => travelToNewMap(tileData.type));
-    encounterActions.appendChild(travelButton);
-
-    logToConsole(`A path to another realm lies before you.`);
-  } else {
-    encounterName.textContent = 'Empty';
-    encounterDescription.textContent =
-      'The area is clear. You see only the landscape.';
-    encounterActions.innerHTML = '';
-  }
-
-  checkRestOption();
-}
-
-// --- SCREEN TRANSITION & CHARACTER SELECT (Stable) ---
-
-function switchScreen(nextScreenId) {
-  titleScreen.classList.add('hidden');
-  charSelectScreen.classList.add('hidden');
-  gameInterface.classList.add('hidden');
-
-  if (nextScreenId === 'title') {
-    titleScreen.classList.remove('hidden');
-  } else if (nextScreenId === 'char-select') {
-    charSelectScreen.classList.remove('hidden');
-    document.getElementById('gender-selection').classList.remove('hidden');
-    classSelectionDiv.classList.add('hidden');
-  } else if (nextScreenId === 'game-interface') {
-    gameInterface.classList.remove('hidden');
-  }
-
-  gameState.screen = nextScreenId;
-}
-
-function handleGenderSelection(event) {
-  const selectedButton = event.currentTarget;
-  const selectedGender = selectedButton.dataset.gender;
-
-  gameState.player.gender = selectedGender;
-
-  genderChoiceText.textContent = `You have chosen your kin. Now, select your starting Path.`;
-
-  genderChoiceButtons.forEach((btn) => btn.classList.remove('selected'));
-  selectedButton.classList.add('selected');
-
-  classSelectionDiv.classList.remove('hidden');
-  confirmCharButton.disabled = true;
-  populatePathSelection();
-}
-
-function populatePathSelection() {
-  const pathButtonsContainer =
-    classSelectionDiv.querySelector('.choice-buttons');
-  pathButtonsContainer.innerHTML = '';
-
-  GAME_PATHS.forEach((path) => {
-    const button = document.createElement('button');
-    button.classList.add('choice-btn', 'path-btn');
-    button.dataset.path = path.id;
-    button.textContent = path.name;
-    button.addEventListener('click', handlePathSelection);
-    pathButtonsContainer.appendChild(button);
+  roster.forEach(hero => {
+    const slotCard = document.createElement('div');
+    slotCard.className = 'char-slot-card';
+    slotCard.innerHTML = `
+      <div class="char-slot-meta">
+        <strong>${hero.name}</strong>
+        <span>${hero.gender} • ${hero.class}</span>
+      </div>
+      <div>
+        <span class="badge">Day ${hero.time.day}</span>
+      </div>
+    `;
+    slotCard.onclick = () => {
+      currentHero = hero;
+      launchGameplay();
+    };
+    slotsList.appendChild(slotCard);
   });
 }
 
-function handlePathSelection(event) {
-  const selectedPathId = event.currentTarget.dataset.path;
-  const selectedPath = GAME_PATHS.find((p) => p.id === selectedPathId);
+function launchGameplay() {
+  switchScreen('gameInterface');
+  buildTimeSegments();
+  updateTimeTracker();
+  updateVitals();
 
-  if (!selectedPath) return;
-
-  gameState.player.path = selectedPathId;
-
-  document
-    .querySelectorAll('.path-btn')
-    .forEach((btn) => btn.classList.remove('selected'));
-  event.currentTarget.classList.add('selected');
-
-  document.getElementById(
-    'path-choice-text'
-  ).textContent = `${selectedPath.name}: ${selectedPath.desc} (Focuses on ${selectedPath.focus}).`;
-
-  confirmCharButton.disabled = false;
-}
-
-function updateHealthDisplay() {
-  const bloodMeterFill = document.getElementById('blood-meter-fill');
-  const hpValue = document.getElementById('hp-value');
-
-  const { currentHP, maxHP } = gameState.player;
-
-  const healthPercent = (currentHP / maxHP) * 100;
-
-  bloodMeterFill.style.height = `${healthPercent}%`;
-  hpValue.textContent = `${currentHP} / ${maxHP}`;
-
-  if (currentHP <= 0) {
-    logToConsole('The warrior has fallen!');
-  }
-}
-
-// --- GAME STARTUP ---
-
-function initializeGame() {
-  // 1. Finalize Player Display
-  const charName =
-    gameState.player.gender === 'male' ? 'The Huscarl' : 'The Shieldmaiden';
-  document.querySelector('#char-sheet-container h2').textContent = charName;
-
-  // 2. Build the visual time bar once
-  generateTimeBar();
-
-  // 3. Initialize Time
-  updateTimeDisplay();
-
-  // 4. Generate and Render Initial Map (Landfall)
-  generateMap('Landfall');
+  const startingMap = currentHero.currentLocation.includes('Hall') ? 'Longhouse' : 'Landfall';
+  loadMap(startingMap);
+  activeMapData[currentHero.pos.y][currentHero.pos.x].visited = true;
   renderMap();
-
-  // 5. Update Health Meter
-  updateHealthDisplay();
-
-  logToConsole(
-    `Welcome, ${charName}! You start your journey at ${gameState.currentLocation}. Select an adjacent tile to move.`
-  );
-  console.log('Entering the World! Final Player State:', gameState.player);
+  inspectTile(activeMapData[currentHero.pos.y][currentHero.pos.x], true);
+  logEvent(`Saga resumed for ${currentHero.name}. Entered ${currentHero.currentLocation}.`);
 }
 
-// --- EVENT LISTENERS ---
-
-document.getElementById('start-game-button').addEventListener('click', () => {
-  switchScreen('char-select');
-});
-
-document.querySelectorAll('#gender-selection .choice-btn').forEach((button) => {
-  button.addEventListener('click', handleGenderSelection);
-});
-
-document.getElementById('confirm-char-button').addEventListener('click', () => {
-  if (gameState.player.gender && gameState.player.path) {
-    switchScreen('game-interface');
-    initializeGame();
-  } else {
-    alert('Please choose a gender and a starting path.');
-  }
-});
-
-// Listener to ensure the time tracker is correctly positioned when the window size changes
-window.addEventListener('resize', () => {
-  if (gameState.screen === 'game-interface') {
-    updateTimeDisplay();
-  }
-});
-
-// --- INITIALIZATION ---
-
-switchScreen('title');
-
-// Debug function to take damage
-window.takeDamage = (amount) => {
-  gameState.player.currentHP = Math.max(0, gameState.player.currentHP - amount);
-  logToConsole(`You took ${amount} damage.`);
-  updateHealthDisplay();
+// Screen Navigation & Creation Handlers
+document.getElementById('btn-new-journey').onclick = () => {
+  switchScreen('charCreate');
 };
 
-logToConsole('Game Initialized. Ready for Title Screen.');
+document.getElementById('btn-continue-journey').onclick = () => {
+  renderRosterScreen();
+  switchScreen('roster');
+};
+
+document.getElementById('btn-roster-back').onclick = () => switchScreen('title');
+document.getElementById('btn-create-back').onclick = () => switchScreen('title');
+
+// Creation Flow: Gender & Class State
+let selectedGender = 'Man';
+let selectedClass = 'Warrior';
+
+document.querySelectorAll('#gender-choice-row .choice-btn').forEach(btn => {
+  btn.onclick = (e) => {
+    document.querySelectorAll('#gender-choice-row .choice-btn').forEach(b => b.classList.remove('selected'));
+    const t = e.currentTarget;
+    t.classList.add('selected');
+    selectedGender = t.dataset.gender;
+  };
+});
+
+document.querySelectorAll('#class-choice-row .choice-btn').forEach(btn => {
+  btn.onclick = (e) => {
+    document.querySelectorAll('#class-choice-row .choice-btn').forEach(b => b.classList.remove('selected'));
+    const t = e.currentTarget;
+    t.classList.add('selected');
+    selectedClass = t.dataset.class;
+  };
+});
+
+// Name Input Enforcer (5 Letters)
+const nameInput = document.getElementById('player-name-input');
+const charLimitIndicator = document.getElementById('char-limit-indicator');
+
+nameInput.addEventListener('input', () => {
+  nameInput.value = nameInput.value.replace(/[^a-zA-Z]/g, '').slice(0, 5).toUpperCase();
+  charLimitIndicator.textContent = `${nameInput.value.length} / 5`;
+});
+
+document.getElementById('btn-create-confirm').onclick = () => {
+  const chosenName = nameInput.value.trim().toUpperCase() || 'EINAR';
+
+  currentHero = {
+    id: `hero_${Date.now()}`,
+    name: chosenName,
+    gender: selectedGender,
+    class: selectedClass,
+    level: 1,
+    currentLocation: 'Landfall Coast',
+    pos: { x: 9, y: 17 },
+    time: { hour: 6, day: 1 },
+    maxHP: 100,
+    currentHP: 100,
+    maxResource: 100,
+    resource: 100,
+    exhaustion: 0,
+    gear: {
+      head: null,
+      chest: 'leather',
+      mainhand: 'seax',
+      offhand: 'shield',
+      boots: 'wraps'
+    },
+    stats: selectedClass === 'Warrior'
+      ? { str: 14, int: 8, agi: 10 }
+      : { str: 7, int: 15, agi: 9 }
+  };
+
+  persistCurrentHero();
+  launchGameplay();
+};
+
+// HUD Actions
+document.getElementById('manual-save-btn').onclick = () => {
+  persistCurrentHero();
+  logEvent('Progress etched in stone (Saved).');
+};
+
+document.getElementById('exit-to-title-btn').onclick = () => {
+  persistCurrentHero();
+  switchScreen('title');
+};
