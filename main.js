@@ -692,3 +692,49 @@ document.getElementById('exit-to-title-btn').onclick = () => {
   persistCurrentHero();
   switchScreen('title');
 };
+// --- Character Sheet UI Logic ---
+
+const charSheetScreen = document.getElementById('character-sheet-screen');
+const inventoryGrid = document.getElementById('inventory-grid');
+let isSheetOpen = false;
+
+// Create 40 empty slots for the inventory bag
+function buildInventoryGrid() {
+  inventoryGrid.innerHTML = '';
+  for (let i = 0; i < 40; i++) {
+    const slot = document.createElement('div');
+    slot.className = 'inv-slot';
+    inventoryGrid.appendChild(slot);
+  }
+}
+
+function toggleCharacterSheet() {
+  // Prevent opening the sheet if the player is currently walking
+  if (isMoving) return; 
+
+  isSheetOpen = !isSheetOpen;
+  
+  if (isSheetOpen) {
+    charSheetScreen.classList.remove('hidden');
+    document.getElementById('sheet-char-name').textContent = currentHero.name;
+    document.getElementById('sheet-char-class').textContent = `Level ${currentHero.level} ${currentHero.class}`;
+    // We will calculate and update stats here later
+  } else {
+    charSheetScreen.classList.add('hidden');
+  }
+}
+
+// Close button event
+document.getElementById('close-sheet-btn').addEventListener('click', toggleCharacterSheet);
+
+// Allow pressing 'I' or 'C' on the keyboard to open the sheet
+document.addEventListener('keydown', (e) => {
+  if (e.key.toLowerCase() === 'i' || e.key.toLowerCase() === 'c') {
+    if (currentHero && currentHero.currentHP > 0) {
+      toggleCharacterSheet();
+    }
+  }
+});
+
+// Call this once when the game loads
+buildInventoryGrid();
