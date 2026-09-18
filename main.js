@@ -348,7 +348,8 @@ function initiateTravel(tx, ty) {
 }
 
 function walkNextStep(path) {
-  if (path.length === 0 || currentHero.currentHP <= 0) {
+  // Check if we reached the end or if movement was externally interrupted
+  if (path.length === 0 || !isMoving) {
     isMoving = false;
     return;
   }
@@ -356,9 +357,17 @@ function walkNextStep(path) {
   const nextNode = path.shift();
   const tile = activeMapData[nextNode.y][nextNode.x];
 
-  // Advance time & logic
+  // Advance time & logic (This might trigger exhaustion damage and death)
   advanceTime(1);
+  
+  // CRITICAL FIX: If handleDeath() was triggered during advanceTime, 
+  // it sets isMoving = false. We must abort the step immediately before updating pos.
+  if (!isMoving) {
+    return; 
+  }
+
   if (currentHero.currentHP > 0) {
+    // Safely update position
     currentHero.pos = { x: nextNode.x, y: nextNode.y };
     tile.visited = true;
     renderMap();

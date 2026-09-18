@@ -821,7 +821,53 @@
         <div id="game-map-container">
           <div id="game-map"></div>
         </div>
+<!-- CHARACTER SHEET OVERLAY -->
+<div id="character-sheet-screen" class="hidden">
+  <div class="sheet-container">
+    <div class="sheet-header">
+      <h2 id="sheet-char-name">Hero Name</h2>
+      <p id="sheet-char-class">Level 1 Warrior</p>
+    </div>
+    
+    <div class="sheet-layout">
+      <!-- Left: Stats -->
+      <div class="sheet-stats">
+        <h3>Stats</h3>
+        <p>Attack: <span id="stat-atk">0</span></p>
+        <p>Defense: <span id="stat-def">0</span></p>
+        <p>Stamina/Mana: <span id="stat-resource">0</span></p>
+      </div>
 
+      <!-- Center: Equipment Slots -->
+      <div class="sheet-equipment">
+        <div class="equip-slot" data-slot="head">Head</div>
+        <div class="equip-row">
+          <div class="equip-slot" data-slot="mainhand">Main Wpn</div>
+          <div class="equip-slot" data-slot="chest">Chest</div>
+          <div class="equip-slot" data-slot="offhand">Offhand</div>
+        </div>
+        <div class="equip-slot" data-slot="legs">Legs</div>
+        <div class="equip-slot" data-slot="boots">Feet</div>
+      </div>
+
+      <!-- Right: Item Hover Info -->
+      <div class="sheet-item-info">
+        <h3>Item Info</h3>
+        <div id="item-hover-details">Hover over an item to see stats...</div>
+      </div>
+    </div>
+
+    <!-- Bottom: Inventory Bag -->
+    <div class="sheet-inventory">
+      <h3>Inventory Bag</h3>
+      <div id="inventory-grid" class="inv-grid">
+        <!-- JS will populate empty slots here -->
+      </div>
+    </div>
+    
+    <button id="close-sheet-btn" class="rune-btn">Close Sheet</button>
+  </div>
+</div>
         <div id="game-console">
           <div class="console-title-bar">Saga Event Log</div>
           <div id="console-output"></div>
