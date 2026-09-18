@@ -832,36 +832,44 @@
     <div class="sheet-layout">
       <!-- Left: Stats -->
       <div class="sheet-stats">
-        <h3>Stats</h3>
-        <p>Attack: <span id="stat-atk">0</span></p>
-        <p>Defense: <span id="stat-def">0</span></p>
-        <p>Stamina/Mana: <span id="stat-resource">0</span></p>
+        <h3>Vitals & Stats</h3>
+        <ul id="stat-list">
+          <li>Attack: <span id="stat-atk">0</span></li>
+          <li>Defense: <span id="stat-def">0</span></li>
+          <li>Ice Dmg: <span id="stat-ice">0</span></li>
+          <li>Fire Dmg: <span id="stat-fire">0</span></li>
+          <li>Max HP: <span id="stat-hp">0</span></li>
+        </ul>
       </div>
 
-      <!-- Center: Equipment Slots -->
+      <!-- Center: Equipment Cross (Drag Targets) -->
       <div class="sheet-equipment">
-        <div class="equip-slot" data-slot="head">Head</div>
+        <div class="equip-slot" data-slot="head" ondragover="allowDrop(event)" ondrop="dropToEquip(event, 'head')">Head</div>
+        
         <div class="equip-row">
-          <div class="equip-slot" data-slot="mainhand">Main Wpn</div>
-          <div class="equip-slot" data-slot="chest">Chest</div>
-          <div class="equip-slot" data-slot="offhand">Offhand</div>
+          <div class="equip-slot" data-slot="mainhand" ondragover="allowDrop(event)" ondrop="dropToEquip(event, 'mainhand')">Main</div>
+          <div class="equip-slot" data-slot="chest" ondragover="allowDrop(event)" ondrop="dropToEquip(event, 'chest')">Chest</div>
+          <div class="equip-slot" data-slot="offhand" ondragover="allowDrop(event)" ondrop="dropToEquip(event, 'offhand')">Offhand</div>
         </div>
-        <div class="equip-slot" data-slot="legs">Legs</div>
-        <div class="equip-slot" data-slot="boots">Feet</div>
+        
+        <div class="equip-slot" data-slot="legs" ondragover="allowDrop(event)" ondrop="dropToEquip(event, 'legs')">Legs</div>
+        <div class="equip-slot" data-slot="boots" ondragover="allowDrop(event)" ondrop="dropToEquip(event, 'boots')">Feet</div>
       </div>
 
       <!-- Right: Item Hover Info -->
       <div class="sheet-item-info">
-        <h3>Item Info</h3>
-        <div id="item-hover-details">Hover over an item to see stats...</div>
+        <h3>Item Inspection</h3>
+        <div id="item-hover-details">
+          <p class="placeholder-text">Hover over an item to inspect its runes and stats.</p>
+        </div>
       </div>
     </div>
 
-    <!-- Bottom: Inventory Bag -->
+    <!-- Bottom: Dynamic Inventory Bag -->
     <div class="sheet-inventory">
       <h3>Inventory Bag</h3>
-      <div id="inventory-grid" class="inv-grid">
-        <!-- JS will populate empty slots here -->
+      <div id="inventory-grid" class="inv-grid grid-5x5">
+        <!-- JS will populate slots here -->
       </div>
     </div>
     

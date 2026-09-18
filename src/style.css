@@ -720,3 +720,99 @@ html, body {
   border: 1px solid #443322;
   background: #1a1e24;
 }
+/* Character Sheet Layout */
+#character-sheet-screen {
+  position: absolute;
+  top: 0; left: 0; width: 100%; height: 100%;
+  background: rgba(11, 14, 26, 0.9);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 200;
+}
+
+.sheet-container {
+  background: #2a241c;
+  border: 4px solid #c9933b;
+  padding: 20px;
+  width: 850px;
+  color: #e5bf6c;
+  text-align: center;
+  box-shadow: 0 0 20px rgba(0,0,0,0.8);
+}
+
+.sheet-layout {
+  display: flex;
+  justify-content: space-between;
+  margin: 20px 0;
+}
+
+.sheet-stats, .sheet-item-info {
+  width: 220px;
+  background: #1a1e24;
+  padding: 15px;
+  border: 2px solid #443322;
+  text-align: left;
+}
+
+.sheet-stats ul { list-style: none; padding: 0; }
+.sheet-stats li { margin-bottom: 8px; font-size: 14px; }
+
+.sheet-equipment {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+
+.equip-row {
+  display: flex;
+  gap: 10px;
+}
+
+.equip-slot, .inv-slot {
+  width: 60px;
+  height: 60px;
+  background: #161a22;
+  border: 2px dashed #443322;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  position: relative;
+}
+
+.equip-slot { width: 70px; height: 70px; }
+
+/* Item styling & Dragging */
+.draggable-item {
+  width: 90%;
+  height: 90%;
+  cursor: grab;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px; /* Icon size */
+  background: #20252f;
+}
+
+.draggable-item:active { cursor: grabbing; }
+
+/* Rarity Borders */
+.rarity-common { border: 2px solid #4ade80; } /* Green */
+.rarity-rare { border: 2px solid #60a5fa; } /* Blue */
+.rarity-epic { border: 2px solid #c084fc; box-shadow: 0 0 8px #c084fc; } /* Purple */
+.rarity-legendary { border: 2px solid #fb923c; outline: 2px solid #2dd4bf; box-shadow: 0 0 10px #fb923c; } /* Orange/Teal */
+
+/* Dynamic Inventory Grid */
+.inv-grid {
+  display: grid;
+  gap: 5px;
+  justify-content: center;
+  margin-top: 15px;
+  margin-bottom: 15px;
+}
+
+.grid-5x5 { grid-template-columns: repeat(5, 60px); }
+.grid-10x10 { grid-template-columns: repeat(10, 50px); }
+.grid-10x10 .inv-slot { width: 50px; height: 50px; }

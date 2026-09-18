@@ -738,3 +738,192 @@ document.addEventListener('keydown', (e) => {
 
 // Call this once when the game loads
 buildInventoryGrid();
+// --- INVENTORY & CHARACTER SHEET SYSTEM ---
+const sheetScreen = document.getElementById('character-sheet-screen');
+let isSheetOpen = false;
+
+// We need to ensure currentHero has an inventory array when created
+// Update your btn-name-confirm click handler to include: inventory: [], inventorySize: 25
+
+function openCharacterSheet() {
+  if (isMoving) return;
+  isSheetOpen = true;
+  sheetScreen.classList.remove('hidden');
+  
+  document.getElementById('sheet-char-name').textContent = currentHero.name;
+  document.getElementById('sheet-char-class').textContent = `Level ${currentHero.level} ${currentHero.class}`;
+  
+  // Ensure hero has inventory array
+  if (!currentHero.inventory) currentHero.inventory = [];
+  
+  adjustAndRenderInventory();
+  renderEquipment();
+  calculateStats();
+}
+
+function closeCharacterSheet() {
+  isSheetOpen = false;
+  sheetScreen.classList.add('hidden');
+}
+
+document.getElementById('close-sheet-btn').onclick = closeCharacterSheet;
+document.addEventListener('keydown', (e) => {
+  if (e.key.toLowerCase() === 'i' || e.key.toLowerCase() === 'c') {
+    if (currentHero && currentHero.currentHP > 0) {
+      isSheetOpen ? closeCharacterSheet() : openCharacterSheet();
+    }
+  }
+});
+
+// --- Dynamic Scaling Grid ---
+function adjustAndRenderInventory() {
+  const invGrid = document.getElementById('inventory-grid');
+  invGrid.innerHTML = '';
+  
+  // Scale grid based on items (If you get a backpack upgrade, this scales to 100 slots)
+  const maxSlots = currentHero.inventory.length > 25 ? 100 : 25;
+  invGrid.className = maxSlots === 100 ? 'inv-grid grid-10x10' : 'inv-grid grid-5x5';
+
+  for (let i = 0; i < maxSlots; i++) {
+    const slot = document.createElement('div');
+    slot.className = 'inv-slot';
+    slot.setAttribute('ondragover', 'allowDrop(event)');
+    slot.setAttribute('ondrop', `dropToInventory(event, ${i})`);
+    
+    // If there is an item in this index, render it
+    const item = currentHero.inventory[i];
+    if (item) {
+      slot.appendChild(createItemElement(item, `inv-${i}`));
+    }
+    
+    invGrid.appendChild(slot);
+  }
+}
+
+function renderEquipment() {
+  const slots = ['head', 'chest', 'legs', 'boots', 'mainhand', 'offhand'];
+  slots.forEach(slot => {
+    const slotElement = document.querySelector(`.equip-slot[data-slot="${slot}"]`);
+    slotElement.innerHTML = slot.charAt(0).toUpperCase() + slot.slice(1); // Reset text
+    
+    if (currentHero.gear[slot]) {
+      slotElement.innerHTML = ''; // Clear text
+      slotElement.appendChild(createItemElement(currentHero.gear[slot], `equip-${slot}`));
+    }
+  });
+}
+
+function createItemElement(item, dragId) {
+  const el = document.createElement('div');
+  el.className = `draggable-item rarity-${item.rarity}`;
+  el.textContent = item.symbol || '🗡️'; // Use a symbol based on item type
+  el.draggable = true;
+  el.id = dragId;
+  
+  el.addEventListener('dragstart', (e) => {
+    e.dataTransfer.setData('text/plain', JSON.stringify({
+      itemData: item,
+      sourceId: dragId
+    }));
+  });
+
+  el.addEventListener('mouseenter', () => {
+    document.getElementById('item-hover-details').innerHTML = `
+      <h4 style="color: ${getRarityColor(item.rarity)}">${item.name}</h4>
+      <p>Rarity: ${item.rarity.toUpperCase()}</p>
+      <p>Slot: ${item.slot}</p>
+      <hr style="border-color:#443322;">
+      <p>${formatStats(item.stats)}</p>
+    `;
+  });
+  
+  el.addEventListener('mouseleave', () => {
+    document.getElementById('item-hover-details').innerHTML = '<p class="placeholder-text">Hover over an item...</p>';
+  });
+
+  return el;
+}
+
+function getRarityColor(rarity) {
+  const colors = { common: '#4ade80', rare: '#60a5fa', epic: '#c084fc', legendary: '#fb923c' };
+  return colors[rarity] || '#fff';
+}
+
+function formatStats(stats) {
+  if (!stats) return 'No combat stats.';
+  return Object.entries(stats).map(([key, val]) => `+${val} ${key.toUpperCase()}`).join('<br>');
+}
+
+// --- Drag & Drop Handlers ---
+function allowDrop(e) {
+  e.preventDefault();
+}
+
+function dropToEquip(e, targetSlot) {
+  e.preventDefault();
+  const data = JSON.parse(e.dataTransfer.getData('text/plain'));
+  const item = data.itemData;
+
+  // Check if item fits the slot (2H weapon logic goes here later)
+  if (item.slot !== targetSlot && item.slot !== 'anyhand') {
+    logEvent(`You cannot equip ${item.name} in the ${targetSlot} slot.`);
+    return;
+  }
+
+  // Remove from inventory
+  if (data.sourceId.includes('inv-')) {
+    const invIndex = parseInt(data.sourceId.split('-')[1]);
+    currentHero.inventory[invIndex] = null;
+  }
+
+  // If something is already equipped, put it in the inventory
+  if (currentHero.gear[targetSlot]) {
+    const oldItem = currentHero.gear[targetSlot];
+    const emptySlot = currentHero.inventory.findIndex(i => i === null || i === undefined);
+    if (emptySlot !== -1) currentHero.inventory[emptySlot] = oldItem;
+    else currentHero.inventory.push(oldItem); // Backpack overflow
+  }
+
+  // Equip new item
+  currentHero.gear[targetSlot] = item;
+  
+  persistCurrentHero();
+  openCharacterSheet(); // Refresh UI
+}
+
+function dropToInventory(e, targetIndex) {
+  e.preventDefault();
+  const data = JSON.parse(e.dataTransfer.getData('text/plain'));
+  const item = data.itemData;
+
+  // If it came from equipment, clear that slot
+  if (data.sourceId.includes('equip-')) {
+    const slot = data.sourceId.split('-')[1];
+    currentHero.gear[slot] = null;
+  } else if (data.sourceId.includes('inv-')) {
+    // Swap inventory slots
+    const sourceIndex = parseInt(data.sourceId.split('-')[1]);
+    currentHero.inventory[sourceIndex] = currentHero.inventory[targetIndex];
+  }
+
+  currentHero.inventory[targetIndex] = item;
+  
+  persistCurrentHero();
+  openCharacterSheet(); // Refresh UI
+}
+
+function calculateStats() {
+  let atk = currentHero.stats.str;
+  let def = currentHero.stats.agi;
+  
+  Object.values(currentHero.gear).forEach(item => {
+    if (item && item.stats) {
+      if (item.stats.attack) atk += item.stats.attack;
+      if (item.stats.defense) def += item.stats.defense;
+    }
+  });
+
+  document.getElementById('stat-atk').textContent = atk;
+  document.getElementById('stat-def').textContent = def;
+  document.getElementById('stat-hp').textContent = currentHero.maxHP;
+}
