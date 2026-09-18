@@ -5,652 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>VIKING JOURNEY</title>
     <link rel="stylesheet" href="./style.css" />
-    <style>
-      /* Embedded guarantee styles to prevent unstyled loading */
-      :root {
-        --bg-deep: #080a0e;
-        --panel-bg: #12161f;
-        --panel-border: #262d3a;
-        --panel-border-bright: #3d4758;
-        --accent-gold: #c9933b;
-        --accent-gold-hover: #e0aa53;
-        --crimson-hp: #a62a2a;
-        --amber-stamina: #c4821d;
-        --mana-blue: #2a6fb3;
-        --violet-exhaustion: #59367d;
-        --text-bright: #e7ecf2;
-        --text-muted: #8592a6;
-        --tile-size: 26px;
-      }
-
-      * {
-        box-sizing: border-box;
-        margin: 0;
-        padding: 0;
-      }
-
-      html, body {
-        width: 100vw;
-        height: 100vh;
-        max-height: 100vh;
-        overflow: hidden;
-        background-color: var(--bg-deep);
-        color: var(--text-bright);
-        font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-        user-select: none;
-      }
-
-      .hidden {
-        display: none !important;
-      }
-
-      /* Screen Overlay: Centers Every Step */
-      .screen-overlay {
-        position: fixed;
-        inset: 0;
-        width: 100vw;
-        height: 100vh;
-        background: radial-gradient(circle at center, #151a24 0%, var(--bg-deep) 85%);
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        z-index: 50;
-        padding: 20px;
-      }
-
-      .parchment-frame {
-        background: rgba(18, 22, 31, 0.97);
-        border: 2px solid var(--accent-gold);
-        box-shadow: 0 0 35px rgba(0, 0, 0, 0.9), inset 0 0 15px rgba(201, 147, 59, 0.12);
-        padding: 2.2rem;
-        border-radius: 8px;
-        text-align: center;
-        max-width: 480px;
-        width: 100%;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-      }
-
-      .wide-frame {
-        max-width: 580px;
-      }
-
-      .game-logo {
-        font-size: 2.3rem;
-        letter-spacing: 0.12em;
-        color: var(--accent-gold);
-        text-shadow: 0 2px 10px rgba(201, 147, 59, 0.35);
-        margin-bottom: 0.5rem;
-      }
-
-      .flavor-text {
-        color: var(--text-muted);
-        font-style: italic;
-        font-size: 0.92rem;
-        line-height: 1.4;
-        margin-bottom: 1.6rem;
-      }
-
-      .screen-subtitle {
-        color: var(--text-muted);
-        font-size: 0.88rem;
-        margin-bottom: 1.5rem;
-      }
-
-      .choice-deck {
-        display: flex;
-        gap: 16px;
-        width: 100%;
-        justify-content: center;
-        margin-bottom: 1.5rem;
-      }
-
-      .card-choice-btn {
-        flex: 1;
-        background: #10141c;
-        border: 2px solid var(--panel-border);
-        color: var(--text-bright);
-        padding: 20px 14px;
-        border-radius: 8px;
-        cursor: pointer;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        gap: 8px;
-        transition: all 0.2s ease;
-      }
-
-      .card-choice-btn:hover {
-        border-color: var(--accent-gold);
-        background: #19202b;
-      }
-
-      .card-choice-btn.selected {
-        border-color: var(--accent-gold);
-        background: #202837;
-        box-shadow: 0 0 12px rgba(201, 147, 59, 0.35);
-      }
-
-      .card-choice-btn .choice-portrait {
-        font-size: 2.8rem;
-      }
-
-      .card-choice-btn strong {
-        font-size: 1.1rem;
-        color: var(--accent-gold);
-      }
-
-      .card-choice-btn small {
-        font-size: 0.75rem;
-        color: var(--text-muted);
-      }
-
-      .input-wrap {
-        display: flex;
-        align-items: center;
-        gap: 10px;
-        background: #0b0e14;
-        border: 2px solid var(--panel-border-bright);
-        border-radius: 6px;
-        padding: 10px 16px;
-        width: 100%;
-        margin-bottom: 1.5rem;
-      }
-
-      .input-wrap input {
-        flex: 1;
-        background: transparent;
-        border: none;
-        color: var(--accent-gold);
-        font-size: 1.3rem;
-        font-weight: 700;
-        text-transform: uppercase;
-        letter-spacing: 0.25em;
-        outline: none;
-        text-align: center;
-      }
-
-      #char-limit-indicator {
-        font-size: 0.8rem;
-        color: var(--text-muted);
-      }
-
-      .rune-btn {
-        background: linear-gradient(180deg, #272f3e 0%, #151a24 100%);
-        color: var(--accent-gold);
-        border: 1px solid var(--accent-gold);
-        padding: 11px 22px;
-        font-size: 0.92rem;
-        font-weight: 700;
-        letter-spacing: 0.05em;
-        text-transform: uppercase;
-        border-radius: 4px;
-        cursor: pointer;
-        transition: all 0.15s ease-in-out;
-      }
-
-      .rune-btn:hover:not(:disabled) {
-        background: var(--accent-gold);
-        color: var(--bg-deep);
-        box-shadow: 0 0 14px rgba(201, 147, 59, 0.5);
-      }
-
-      .rune-btn:disabled {
-        border-color: var(--panel-border);
-        color: var(--text-muted);
-        cursor: not-allowed;
-        opacity: 0.4;
-      }
-
-      .secondary-btn {
-        border-color: var(--panel-border-bright);
-        color: var(--text-muted);
-      }
-
-      .secondary-btn:hover:not(:disabled) {
-        background: #1c222e;
-        color: var(--text-bright);
-        box-shadow: none;
-      }
-
-      .screen-actions {
-        display: flex;
-        gap: 12px;
-        width: 100%;
-        justify-content: center;
-      }
-
-      .slots-container {
-        display: flex;
-        flex-direction: column;
-        gap: 10px;
-        max-height: 280px;
-        overflow-y: auto;
-        width: 100%;
-        margin-bottom: 1.2rem;
-      }
-
-      .char-slot-card {
-        background: #0f131a;
-        border: 1px solid var(--panel-border);
-        padding: 12px 16px;
-        border-radius: 6px;
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        cursor: pointer;
-        transition: all 0.15s ease;
-      }
-
-      .char-slot-card:hover {
-        border-color: var(--accent-gold);
-        background: #171d27;
-      }
-
-      .char-slot-meta strong {
-        display: block;
-        font-size: 1.05rem;
-        color: var(--accent-gold);
-        letter-spacing: 0.05em;
-      }
-
-      .char-slot-meta span {
-        font-size: 0.8rem;
-        color: var(--text-muted);
-      }
-
-      /* Game HUD: 3 Columns Locked to 100vh */
-      #game-interface {
-        display: grid;
-        grid-template-columns: 290px 1fr 310px;
-        width: 100vw;
-        height: 100vh;
-        max-height: 100vh;
-        overflow: hidden;
-      }
-
-      .panel {
-        background: var(--panel-bg);
-        border-right: 1px solid var(--panel-border);
-        display: flex;
-        flex-direction: column;
-        padding: 14px;
-        gap: 12px;
-        overflow-y: auto;
-      }
-
-      #inspector-panel {
-        border-right: none;
-        border-left: 1px solid var(--panel-border);
-      }
-
-      .panel-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        border-bottom: 1px solid var(--panel-border);
-        padding-bottom: 8px;
-      }
-
-      .badge {
-        background: #1d232e;
-        border: 1px solid var(--accent-gold);
-        color: var(--accent-gold);
-        font-size: 0.72rem;
-        padding: 2px 8px;
-        border-radius: 3px;
-        text-transform: uppercase;
-      }
-
-      .vitals-group {
-        display: flex;
-        flex-direction: column;
-        gap: 8px;
-      }
-
-      .meter-wrapper {
-        display: flex;
-        flex-direction: column;
-        gap: 3px;
-      }
-
-      .meter-label {
-        display: flex;
-        justify-content: space-between;
-        font-size: 0.75rem;
-        color: var(--text-muted);
-      }
-
-      .meter-track {
-        height: 9px;
-        background: #0b0e14;
-        border-radius: 4px;
-        overflow: hidden;
-        border: 1px solid #1c222d;
-      }
-
-      .meter-bar {
-        height: 100%;
-        transition: width 0.25s ease;
-      }
-
-      .hp-bar { background: linear-gradient(90deg, #781c1c, var(--crimson-hp)); }
-      .stamina-bar { background: linear-gradient(90deg, #915d11, var(--amber-stamina)); }
-      .mana-bar { background: linear-gradient(90deg, #1c4b7a, var(--mana-blue)); }
-      .exhaustion-bar { background: linear-gradient(90deg, #37204f, var(--violet-exhaustion)); }
-
-      .doll-grid {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 6px;
-      }
-
-      .doll-slot {
-        background: #0f131a;
-        border: 1px solid var(--panel-border);
-        padding: 6px 8px;
-        border-radius: 4px;
-        display: flex;
-        flex-direction: column;
-      }
-
-      .doll-slot small {
-        color: var(--text-muted);
-        font-size: 0.68rem;
-        text-transform: uppercase;
-      }
-
-      .doll-slot span {
-        font-size: 0.78rem;
-        font-weight: 600;
-        color: var(--accent-gold);
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
-      }
-
-      .stat-pill-container {
-        display: flex;
-        gap: 6px;
-      }
-
-      .stat-pill {
-        flex: 1;
-        background: #0f131a;
-        border: 1px solid var(--panel-border);
-        text-align: center;
-        padding: 6px 2px;
-        border-radius: 4px;
-      }
-
-      .stat-pill span {
-        display: block;
-        font-size: 0.68rem;
-        color: var(--text-muted);
-      }
-
-      .stat-pill strong {
-        font-size: 0.9rem;
-        color: var(--text-bright);
-      }
-
-      .panel-footer-actions {
-        display: flex;
-        gap: 8px;
-        margin-top: auto;
-      }
-
-      .panel-footer-actions button {
-        flex: 1;
-      }
-
-      #game-viewport {
-        display: flex;
-        flex-direction: column;
-        background: #090c10;
-        position: relative;
-        overflow: hidden;
-        height: 100vh;
-      }
-
-      #world-header {
-        background: #11151d;
-        border-bottom: 1px solid var(--panel-border);
-        padding: 8px 16px;
-        display: flex;
-        flex-direction: column;
-        gap: 6px;
-      }
-
-      .cycle-container {
-        position: relative;
-        width: 100%;
-        display: flex;
-        gap: 4px;
-      }
-
-      .time-bar {
-        display: flex;
-        height: 10px;
-        border-radius: 5px;
-        overflow: hidden;
-        border: 1px solid #1d2431;
-      }
-
-      #day-cycle-bar { flex: 3; }
-      #night-cycle-bar { flex: 1; }
-
-      .hour-segment {
-        flex: 1;
-        height: 100%;
-        border-right: 1px solid rgba(0, 0, 0, 0.2);
-      }
-
-      #sun-moon-tracker {
-        position: absolute;
-        top: -16px;
-        left: 0;
-        font-size: 14px;
-        transform: translateX(-50%);
-        transition: left 0.25s ease;
-        pointer-events: none;
-      }
-
-      .location-banner {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-      }
-
-      #location-name {
-        font-size: 1rem;
-        font-weight: 700;
-        letter-spacing: 0.05em;
-        color: var(--accent-gold);
-      }
-
-      .phase-tag {
-        font-size: 0.75rem;
-        color: var(--text-muted);
-      }
-
-      #game-map-container {
-        flex: 1;
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        overflow: hidden;
-        padding: 10px;
-        background: radial-gradient(circle, #141923 0%, #080b0f 100%);
-      }
-
-      #game-map {
-        display: grid;
-        grid-template-columns: repeat(20, var(--tile-size));
-        grid-auto-rows: var(--tile-size);
-        gap: 1px;
-        padding: 4px;
-        background: #05070a;
-        border: 2px solid var(--panel-border);
-        box-shadow: 0 0 25px rgba(0, 0, 0, 0.85);
-      }
-
-      .tile {
-        width: var(--tile-size);
-        height: var(--tile-size);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 13px;
-        border-radius: 2px;
-        background-size: cover;
-        background-position: center;
-        background-repeat: no-repeat;
-        position: relative;
-      }
-
-      .tile:not(.visited) {
-        filter: brightness(0.2) grayscale(0.6);
-      }
-
-      .tile.visited {
-        filter: brightness(0.95);
-      }
-
-      .tile.can-move {
-        cursor: pointer;
-        outline: 1px dashed var(--accent-gold);
-      }
-
-      .tile.can-move:hover {
-        filter: brightness(1.3);
-        box-shadow: inset 0 0 6px var(--accent-gold);
-      }
-
-      .tile.player::after {
-        content: '🛡️';
-        position: absolute;
-        font-size: 15px;
-        filter: drop-shadow(0 0 4px var(--accent-gold));
-      }
-
-      #game-console {
-        height: 130px;
-        min-height: 130px;
-        background: #07090c;
-        border-top: 1px solid var(--panel-border);
-        display: flex;
-        flex-direction: column;
-      }
-
-      .console-title-bar {
-        background: #0e1218;
-        padding: 3px 10px;
-        font-size: 0.68rem;
-        text-transform: uppercase;
-        letter-spacing: 0.05em;
-        color: var(--text-muted);
-        border-bottom: 1px solid #1a2029;
-      }
-
-      #console-output {
-        flex: 1;
-        padding: 6px 12px;
-        overflow-y: auto;
-        font-family: monospace;
-        font-size: 0.78rem;
-        display: flex;
-        flex-direction: column-reverse;
-      }
-
-      #console-output p {
-        line-height: 1.4;
-        color: var(--text-muted);
-      }
-
-      #console-output p:first-child {
-        color: var(--accent-gold);
-        font-weight: 600;
-      }
-
-      .target-card {
-        background: #0e1218;
-        border: 1px solid var(--panel-border);
-        padding: 12px;
-        border-radius: 6px;
-        text-align: center;
-      }
-
-      .portrait-box {
-        width: 54px;
-        height: 54px;
-        margin: 0 auto 8px auto;
-        border-radius: 4px;
-        background: #171d26;
-        border: 1px solid var(--panel-border-bright);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 26px;
-      }
-
-      .target-card h3 {
-        font-size: 0.95rem;
-        color: var(--accent-gold);
-      }
-
-      .target-stats-block {
-        background: #080a0e;
-        border: 1px solid var(--panel-border);
-        padding: 8px 10px;
-        border-radius: 4px;
-        margin: 8px 0;
-        display: flex;
-        flex-direction: column;
-        gap: 4px;
-        font-size: 0.75rem;
-        text-align: left;
-      }
-
-      .unit-stat-row {
-        display: flex;
-        justify-content: space-between;
-      }
-
-      .unit-stat-row strong {
-        color: var(--text-bright);
-      }
-
-      .target-desc-text {
-        font-size: 0.78rem;
-        color: var(--text-muted);
-        line-height: 1.4;
-        text-align: left;
-      }
-
-      .action-section {
-        display: flex;
-        flex-direction: column;
-        gap: 8px;
-      }
-
-      .action-section h3 {
-        font-size: 0.78rem;
-        text-transform: uppercase;
-        color: var(--text-muted);
-      }
-
-      .action-button-list {
-        display: flex;
-        flex-direction: column;
-        gap: 8px;
-      }
-
-      .action-button-list button {
-        width: 100%;
-      }
-    </style>
   </head>
   <body>
     <!-- 1. Centered Title Screen -->
@@ -731,13 +85,7 @@
         <h2>Inscribe Name</h2>
         <p class="screen-subtitle">Carve your rune-name in stone (5 Letters Maximum).</p>
         <div class="input-wrap">
-          <input
-            type="text"
-            id="player-name-input"
-            maxlength="5"
-            placeholder="EINAR"
-            autocomplete="off"
-          />
+          <input type="text" id="player-name-input" maxlength="5" placeholder="EINAR" autocomplete="off" />
           <span id="char-limit-indicator">0 / 5</span>
         </div>
         <div class="screen-actions">
@@ -747,9 +95,76 @@
       </div>
     </div>
 
-    <!-- 6. In-Game 3-Panel Main Layout (Locked to Screen) -->
+    <!-- 6. In-Game Main Layout -->
     <div id="game-interface" class="game-screen hidden">
-      <!-- Left Panel: Character Sheet & Vitals -->
+      
+      <!-- CHARACTER SHEET OVERLAY -->
+      <div id="character-sheet-screen" class="hidden">
+        <div class="sheet-container">
+          
+          <div class="sheet-header">
+            <h2 id="sheet-char-name">Hero Name</h2>
+            <p id="sheet-char-class">Level 1 Warrior</p>
+          </div>
+          
+          <div class="sheet-layout-grid">
+            <!-- Left Column: Stats -->
+            <div class="sheet-left-col">
+              <div class="sheet-stats">
+                <h3>Vitals & Stats</h3>
+                <ul id="stat-list">
+                  <li>Attack: <span id="stat-atk">0</span></li>
+                  <li>Defense: <span id="stat-def">0</span></li>
+                  <li>Ice Dmg: <span id="stat-ice">0</span></li>
+                  <li>Fire Dmg: <span id="stat-fire">0</span></li>
+                  <li>Max HP: <span id="stat-hp">0</span></li>
+                </ul>
+              </div>
+            </div>
+
+            <!-- Center Column: Equipment Cross -->
+            <div class="sheet-center-col">
+              <div class="sheet-equipment">
+                <div class="equip-slot" data-slot="head" ondragover="allowDrop(event)" ondrop="dropToEquip(event, 'head')">Head</div>
+                
+                <div class="equip-row">
+                  <div class="equip-slot" data-slot="mainhand" ondragover="allowDrop(event)" ondrop="dropToEquip(event, 'mainhand')">Main Wpn</div>
+                  <div class="equip-slot" data-slot="chest" ondragover="allowDrop(event)" ondrop="dropToEquip(event, 'chest')">Chest</div>
+                  <div class="equip-slot" data-slot="offhand" ondragover="allowDrop(event)" ondrop="dropToEquip(event, 'offhand')">Offhand</div>
+                </div>
+                
+                <div class="equip-slot" data-slot="legs" ondragover="allowDrop(event)" ondrop="dropToEquip(event, 'legs')">Legs</div>
+                <div class="equip-slot" data-slot="boots" ondragover="allowDrop(event)" ondrop="dropToEquip(event, 'boots')">Feet</div>
+              </div>
+            </div>
+
+            <!-- Right Column: Item Info & Trash -->
+            <div class="sheet-right-col">
+              <div class="sheet-item-info">
+                <h3>Item Inspection</h3>
+                <div id="item-hover-details">
+                  <p class="placeholder-text">Hover over an item to inspect its runes and stats.</p>
+                </div>
+              </div>
+              <div id="trash-slot" ondragover="allowDrop(event)" ondrop="dropToTrash(event)">
+                 🗑️ Drop Here<br>to Destroy Item
+              </div>
+            </div>
+          </div>
+
+          <!-- Bottom Row: Dynamic Inventory Bag -->
+          <div class="sheet-inventory">
+            <h3>Inventory Bag</h3>
+            <div id="inventory-grid" class="inv-grid grid-5x5">
+              <!-- JS will populate slots here -->
+            </div>
+          </div>
+          
+          <button id="close-sheet-btn" class="rune-btn">Close Sheet</button>
+        </div>
+      </div>
+
+      <!-- HUD Left Panel -->
       <aside id="player-panel" class="panel">
         <div class="panel-header">
           <div>
@@ -804,7 +219,7 @@
         </div>
       </aside>
 
-      <!-- Center Panel: Clock, Grid Viewport, Bottom Log -->
+      <!-- Center Viewport -->
       <main id="game-viewport">
         <header id="world-header">
           <div class="cycle-container">
@@ -821,68 +236,14 @@
         <div id="game-map-container">
           <div id="game-map"></div>
         </div>
-<!-- CHARACTER SHEET OVERLAY -->
-<div id="character-sheet-screen" class="hidden">
-  <div class="sheet-container">
-    <div class="sheet-header">
-      <h2 id="sheet-char-name">Hero Name</h2>
-      <p id="sheet-char-class">Level 1 Warrior</p>
-    </div>
-    
-    <div class="sheet-layout">
-      <!-- Left: Stats -->
-      <div class="sheet-stats">
-        <h3>Vitals & Stats</h3>
-        <ul id="stat-list">
-          <li>Attack: <span id="stat-atk">0</span></li>
-          <li>Defense: <span id="stat-def">0</span></li>
-          <li>Ice Dmg: <span id="stat-ice">0</span></li>
-          <li>Fire Dmg: <span id="stat-fire">0</span></li>
-          <li>Max HP: <span id="stat-hp">0</span></li>
-        </ul>
-      </div>
 
-      <!-- Center: Equipment Cross (Drag Targets) -->
-      <div class="sheet-equipment">
-        <div class="equip-slot" data-slot="head" ondragover="allowDrop(event)" ondrop="dropToEquip(event, 'head')">Head</div>
-        
-        <div class="equip-row">
-          <div class="equip-slot" data-slot="mainhand" ondragover="allowDrop(event)" ondrop="dropToEquip(event, 'mainhand')">Main</div>
-          <div class="equip-slot" data-slot="chest" ondragover="allowDrop(event)" ondrop="dropToEquip(event, 'chest')">Chest</div>
-          <div class="equip-slot" data-slot="offhand" ondragover="allowDrop(event)" ondrop="dropToEquip(event, 'offhand')">Offhand</div>
-        </div>
-        
-        <div class="equip-slot" data-slot="legs" ondragover="allowDrop(event)" ondrop="dropToEquip(event, 'legs')">Legs</div>
-        <div class="equip-slot" data-slot="boots" ondragover="allowDrop(event)" ondrop="dropToEquip(event, 'boots')">Feet</div>
-      </div>
-
-      <!-- Right: Item Hover Info -->
-      <div class="sheet-item-info">
-        <h3>Item Inspection</h3>
-        <div id="item-hover-details">
-          <p class="placeholder-text">Hover over an item to inspect its runes and stats.</p>
-        </div>
-      </div>
-    </div>
-
-    <!-- Bottom: Dynamic Inventory Bag -->
-    <div class="sheet-inventory">
-      <h3>Inventory Bag</h3>
-      <div id="inventory-grid" class="inv-grid grid-5x5">
-        <!-- JS will populate slots here -->
-      </div>
-    </div>
-    
-    <button id="close-sheet-btn" class="rune-btn">Close Sheet</button>
-  </div>
-</div>
         <div id="game-console">
           <div class="console-title-bar">Saga Event Log</div>
           <div id="console-output"></div>
         </div>
       </main>
 
-      <!-- Right Panel: Hover Inspector & Action Decisions -->
+      <!-- HUD Right Panel -->
       <aside id="inspector-panel" class="panel">
         <div class="panel-header">
           <h2>Inspection</h2>

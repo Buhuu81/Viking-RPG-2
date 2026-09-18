@@ -250,6 +250,7 @@ html, body {
   color: var(--text-muted);
 }
 
+/* Game HUD: 3 Columns Locked to 100vh */
 #game-interface {
   display: grid;
   grid-template-columns: 290px 1fr 310px;
@@ -649,82 +650,12 @@ html, body {
   pointer-events: none;
   z-index: 5;
 }
+
+/* --- NEW CHARACTER SHEET CSS --- */
 #character-sheet-screen {
-  position: absolute;
-  top: 0; left: 0; width: 100%; height: 100%;
-  background: rgba(0, 0, 0, 0.85);
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  z-index: 100;
-}
-
-.sheet-container {
-  background: #2a241c; /* Dark wood color */
-  border: 4px solid #c9933b; /* Gold/Bronze trim */
-  padding: 20px;
-  width: 800px;
-  color: #e5bf6c;
-  text-align: center;
-}
-
-.sheet-layout {
-  display: flex;
-  justify-content: space-between;
-  margin: 20px 0;
-}
-
-.sheet-equipment {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 10px;
-}
-
-.equip-row {
-  display: flex;
-  gap: 10px;
-}
-
-.equip-slot {
-  width: 80px;
-  height: 80px;
-  border: 2px dashed #c9933b;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: #1a1e24;
-  font-size: 12px;
-  cursor: pointer;
-}
-
-.sheet-stats, .sheet-item-info {
-  width: 200px;
-  text-align: left;
-  background: #1a1e24;
-  padding: 10px;
-  border: 1px solid #443322;
-}
-
-.inv-grid {
-  display: grid;
-  grid-template-columns: repeat(10, 40px);
-  gap: 5px;
-  justify-content: center;
-  margin-top: 10px;
-}
-
-.inv-slot {
-  width: 40px;
-  height: 40px;
-  border: 1px solid #443322;
-  background: #1a1e24;
-}
-/* Character Sheet Layout */
-#character-sheet-screen {
-  position: absolute;
-  top: 0; left: 0; width: 100%; height: 100%;
-  background: rgba(11, 14, 26, 0.9);
+  position: fixed;
+  top: 0; left: 0; width: 100vw; height: 100vh;
+  background: rgba(8, 10, 14, 0.95);
   display: flex;
   justify-content: center;
   align-items: center;
@@ -732,59 +663,103 @@ html, body {
 }
 
 .sheet-container {
-  background: #2a241c;
-  border: 4px solid #c9933b;
-  padding: 20px;
-  width: 850px;
-  color: #e5bf6c;
-  text-align: center;
-  box-shadow: 0 0 20px rgba(0,0,0,0.8);
+  background: #12161f;
+  border: 3px solid var(--accent-gold);
+  padding: 25px;
+  width: 900px;
+  color: var(--text-bright);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  box-shadow: 0 0 30px rgba(0,0,0,0.9);
+  border-radius: 8px;
 }
 
-.sheet-layout {
-  display: flex;
-  justify-content: space-between;
-  margin: 20px 0;
+.sheet-header {
+  text-align: center;
+  margin-bottom: 20px;
+}
+
+.sheet-header h2 {
+  color: var(--accent-gold);
+  letter-spacing: 2px;
+  font-size: 1.8rem;
+}
+
+/* 3-Column Layout */
+.sheet-layout-grid {
+  display: grid;
+  grid-template-columns: 240px 1fr 240px;
+  gap: 30px;
+  width: 100%;
+  margin-bottom: 20px;
 }
 
 .sheet-stats, .sheet-item-info {
-  width: 220px;
-  background: #1a1e24;
+  background: #0f131a;
   padding: 15px;
-  border: 2px solid #443322;
-  text-align: left;
+  border: 1px solid var(--panel-border);
+  border-radius: 4px;
+  height: 100%;
 }
 
-.sheet-stats ul { list-style: none; padding: 0; }
-.sheet-stats li { margin-bottom: 8px; font-size: 14px; }
+.sheet-stats h3, .sheet-item-info h3 {
+  font-size: 0.9rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  margin-bottom: 10px;
+  border-bottom: 1px solid var(--panel-border);
+  padding-bottom: 5px;
+}
 
+.sheet-stats ul {
+  list-style: none;
+  padding: 0;
+}
+
+.sheet-stats li {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 8px;
+  font-size: 0.85rem;
+}
+
+.sheet-stats span {
+  font-weight: bold;
+  color: var(--accent-gold);
+}
+
+/* Equipment Cross Layout */
 .sheet-equipment {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 10px;
+  justify-content: center;
+  gap: 15px;
+  height: 100%;
 }
 
 .equip-row {
   display: flex;
-  gap: 10px;
+  gap: 15px;
+  align-items: center;
 }
 
-.equip-slot, .inv-slot {
-  width: 60px;
-  height: 60px;
-  background: #161a22;
-  border: 2px dashed #443322;
+.equip-slot {
+  width: 75px;
+  height: 75px;
+  background: #0b0e14;
+  border: 1px dashed var(--panel-border-bright);
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 12px;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
   position: relative;
 }
 
-.equip-slot { width: 70px; height: 70px; }
-
-/* Item styling & Dragging */
+/* Drag and Drop Styling */
 .draggable-item {
   width: 90%;
   height: 90%;
@@ -792,27 +767,71 @@ html, body {
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 24px; /* Icon size */
-  background: #20252f;
+  background: #1a202b;
+  font-size: 1.5rem;
 }
 
-.draggable-item:active { cursor: grabbing; }
+.draggable-item:active {
+  cursor: grabbing;
+}
 
-/* Rarity Borders */
-.rarity-common { border: 2px solid #4ade80; } /* Green */
-.rarity-rare { border: 2px solid #60a5fa; } /* Blue */
-.rarity-epic { border: 2px solid #c084fc; box-shadow: 0 0 8px #c084fc; } /* Purple */
-.rarity-legendary { border: 2px solid #fb923c; outline: 2px solid #2dd4bf; box-shadow: 0 0 10px #fb923c; } /* Orange/Teal */
+/* Rarity Frames */
+.rarity-common { border: 2px solid #4ade80; background: rgba(74, 222, 128, 0.1); }
+.rarity-rare { border: 2px solid #60a5fa; background: rgba(96, 165, 250, 0.1); }
+.rarity-epic { border: 2px solid #c084fc; box-shadow: 0 0 8px #c084fc; background: rgba(192, 132, 252, 0.1); }
+.rarity-legendary { border: 2px solid #fb923c; outline: 1px solid #2dd4bf; box-shadow: 0 0 10px #fb923c; background: rgba(251, 146, 60, 0.1); }
 
-/* Dynamic Inventory Grid */
+/* Trash Window */
+#trash-slot {
+  margin-top: 20px;
+  border: 1px dashed var(--crimson-hp);
+  background: rgba(166, 42, 42, 0.05);
+  color: var(--crimson-hp);
+  padding: 15px;
+  text-align: center;
+  font-size: 0.8rem;
+  border-radius: 4px;
+}
+
+/* Dynamic Inventory Bag */
+.sheet-inventory {
+  width: 100%;
+  border-top: 1px solid var(--panel-border);
+  padding-top: 15px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.sheet-inventory h3 {
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  margin-bottom: 10px;
+}
+
 .inv-grid {
   display: grid;
-  gap: 5px;
-  justify-content: center;
-  margin-top: 15px;
-  margin-bottom: 15px;
+  gap: 4px;
+  background: #0b0e14;
+  padding: 10px;
+  border: 1px solid var(--panel-border);
 }
 
-.grid-5x5 { grid-template-columns: repeat(5, 60px); }
-.grid-10x10 { grid-template-columns: repeat(10, 50px); }
-.grid-10x10 .inv-slot { width: 50px; height: 50px; }
+.inv-slot {
+  background: #12161f;
+  border: 1px solid var(--panel-border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Scaling Grid Classes */
+.grid-5x5 { grid-template-columns: repeat(5, 60px); grid-auto-rows: 60px; }
+.grid-5x5 .draggable-item { font-size: 1.5rem; }
+
+.grid-10x10 { grid-template-columns: repeat(10, 40px); grid-auto-rows: 40px; }
+.grid-10x10 .draggable-item { font-size: 1.1rem; }
+
+.grid-15x15 { grid-template-columns: repeat(15, 30px); grid-auto-rows: 30px; }
+.grid-15x15 .draggable-item { font-size: 0.8rem; }

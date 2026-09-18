@@ -1,6 +1,6 @@
 /**
  * VIKING JOURNEY - Master Game Engine
- * New Feature: Automated A-to-B Pathfinding Movement
+ * Featuring: Grid Movement, Time Cycle, Drag-and-Drop Inventory, and Dynamic Scaling
  */
 
 const STORAGE_ROSTER_KEY = 'viking_journey_roster_v3';
@@ -32,10 +32,10 @@ const ENCOUNTER_TYPES = [
 ];
 
 const GEAR_REGISTRY = {
-  seax: { id: 'seax', name: 'Iron Seax', slot: 'mainhand', rarity: 'common', resolveStats: (c) => c === 'Warrior' ? { attack: 8, rageBonus: 5 } : { attack: 4, spellPower: 6, manaMax: 15 } },
-  leather: { id: 'leather', name: 'Boiled Leather', slot: 'chest', rarity: 'common', resolveStats: (c) => c === 'Warrior' ? { defense: 8, physicalBlock: 4 } : { defense: 5, manaRegen: 3 } },
-  shield: { id: 'shield', name: 'Oak Shield', slot: 'offhand', rarity: 'common', resolveStats: (c) => c === 'Warrior' ? { blockRate: 12, hpMax: 25 } : { ward: 10, runeSpell: 5 } },
-  wraps: { id: 'wraps', name: 'Fur Wraps', slot: 'boots', rarity: 'common', resolveStats: () => ({ moveStaminaCost: -1 }) }
+  seax: { id: 'seax', name: 'Iron Seax', slot: 'mainhand', rarity: 'common', symbol: '🔪', resolveStats: (c) => c === 'Warrior' ? { attack: 8, rageBonus: 5 } : { attack: 4, spellPower: 6, manaMax: 15 } },
+  leather: { id: 'leather', name: 'Boiled Leather', slot: 'chest', rarity: 'common', symbol: '👕', resolveStats: (c) => c === 'Warrior' ? { defense: 8, physicalBlock: 4 } : { defense: 5, manaRegen: 3 } },
+  shield: { id: 'shield', name: 'Oak Shield', slot: 'offhand', rarity: 'common', symbol: '🛡️', resolveStats: (c) => c === 'Warrior' ? { blockRate: 12, hpMax: 25 } : { ward: 10, runeSpell: 5 } },
+  wraps: { id: 'wraps', name: 'Fur Wraps', slot: 'boots', rarity: 'common', symbol: '👢', resolveStats: () => ({ moveStaminaCost: -1 }) }
 };
 
 const DAY_HOURS = [
@@ -125,7 +125,7 @@ function decodeTile(num) {
 // Global Game State
 let currentHero = null;
 let activeMapData = null;
-let isMoving = false; // Prevents clicking while walking
+let isMoving = false; 
 
 // Roster Storage
 function getSavedRoster() {
@@ -253,7 +253,7 @@ function updateVitals() {
 }
 
 function handleDeath() {
-  isMoving = false; // Interrupt movement
+  isMoving = false;
   logEvent('You have fallen... The Valkyries return you to your last camp.');
   currentHero.currentHP = Math.floor(currentHero.maxHP / 2); 
   currentHero.exhaustion = 0; 
@@ -300,13 +300,12 @@ function advanceTime(hours = 1) {
 }
 
 // --- Pathfinding & Automated Movement ---
-
 function findPath(startX, startY, goalX, goalY) {
   const queue = [{ x: startX, y: startY, path: [] }];
   const visited = new Set();
   visited.add(`${startX},${startY}`);
 
-  const dirs = [[0, -1], [1, 0], [0, 1], [-1, 0]]; // N, E, S, W
+  const dirs = [[0, -1], [1, 0], [0, 1], [-1, 0]];
 
   while (queue.length > 0) {
     const current = queue.shift();
@@ -323,16 +322,12 @@ function findPath(startX, startY, goalX, goalY) {
         const tile = activeMapData[ny][nx];
         if (tile.type.walkable && !visited.has(`${nx},${ny}`)) {
           visited.add(`${nx},${ny}`);
-          queue.push({
-            x: nx,
-            y: ny,
-            path: [...current.path, { x: nx, y: ny }]
-          });
+          queue.push({ x: nx, y: ny, path: [...current.path, { x: nx, y: ny }] });
         }
       }
     }
   }
-  return null; // No path found
+  return null;
 }
 
 function initiateTravel(tx, ty) {
@@ -348,7 +343,6 @@ function initiateTravel(tx, ty) {
 }
 
 function walkNextStep(path) {
-  // Check if we reached the end or if movement was externally interrupted
   if (path.length === 0 || !isMoving) {
     isMoving = false;
     return;
@@ -357,30 +351,22 @@ function walkNextStep(path) {
   const nextNode = path.shift();
   const tile = activeMapData[nextNode.y][nextNode.x];
 
-  // Advance time & logic (This might trigger exhaustion damage and death)
   advanceTime(1);
   
-  // CRITICAL FIX: If handleDeath() was triggered during advanceTime, 
-  // it sets isMoving = false. We must abort the step immediately before updating pos.
-  if (!isMoving) {
-    return; 
-  }
+  if (!isMoving) return; 
 
   if (currentHero.currentHP > 0) {
-    // Safely update position
     currentHero.pos = { x: nextNode.x, y: nextNode.y };
     tile.visited = true;
     renderMap();
     inspectTile(tile, true);
 
-    // Stop walking if we step on an encounter, a door, or reach 100 exhaustion
     if (tile.encounter || tile.type.action || currentHero.exhaustion >= 100) {
       isMoving = false;
       logEvent(tile.encounter ? "Movement interrupted by an encounter!" : "Movement halted.");
       return;
     }
 
-    // Continue to next tile with a 250ms delay
     setTimeout(() => walkNextStep(path), 250);
   }
 }
@@ -422,7 +408,6 @@ function renderMap() {
       if (x === px && y === py) cell.classList.add('player');
       if (tile.visited) cell.classList.add('visited');
 
-      // Make ALL walkable tiles clickable for A-to-B pathfinding
       if (tile.type.walkable && !(x === px && y === py)) {
         cell.classList.add('can-move');
         cell.addEventListener('click', () => {
@@ -452,7 +437,7 @@ function renderMap() {
 }
 
 function restHero() {
-  if (isMoving) return; // Cannot camp while walking
+  if (isMoving) return; 
   const isNight = currentHero.time.hour >= 22 || currentHero.time.hour <= 5;
   logEvent('You kindle a camp fire and rest. Saga Saved.');
 
@@ -657,8 +642,14 @@ nameInput.addEventListener('input', () => {
 });
 
 document.getElementById('btn-name-back').onclick = () => switchScreen('chooseClass');
+
 document.getElementById('btn-name-confirm').onclick = () => {
   const finalName = nameInput.value.trim().toUpperCase() || 'EINAR';
+  
+  const startingInventory = new Array(25).fill(null);
+  startingInventory[0] = { id: '001', name: 'Odin\'s Fang', slot: 'mainhand', rarity: 'legendary', symbol: '🗡️', stats: { attack: 15, fire: 5 } };
+  startingInventory[1] = { id: '002', name: 'Iron Coif', slot: 'head', rarity: 'common', symbol: '🪖', stats: { defense: 2 } };
+
   currentHero = {
     id: `hero_${Date.now()}`,
     name: finalName,
@@ -672,9 +663,18 @@ document.getElementById('btn-name-confirm').onclick = () => {
     maxHP: 100, currentHP: 100,
     maxResource: 100, resource: 100,
     exhaustion: 0,
-    gear: { head: null, chest: 'leather', mainhand: 'seax', offhand: 'shield', boots: 'wraps' },
+    gear: { 
+      head: null, 
+      chest: { ...GEAR_REGISTRY.leather, stats: GEAR_REGISTRY.leather.resolveStats(newHeroDraft.class) }, 
+      mainhand: { ...GEAR_REGISTRY.seax, stats: GEAR_REGISTRY.seax.resolveStats(newHeroDraft.class) }, 
+      offhand: { ...GEAR_REGISTRY.shield, stats: GEAR_REGISTRY.shield.resolveStats(newHeroDraft.class) }, 
+      legs: null,
+      boots: { ...GEAR_REGISTRY.wraps, stats: GEAR_REGISTRY.wraps.resolveStats(newHeroDraft.class) } 
+    },
+    inventory: startingInventory,
     stats: newHeroDraft.class === 'Warrior' ? { str: 14, int: 8, agi: 10 } : { str: 7, int: 15, agi: 9 }
   };
+  
   persistCurrentHero();
   launchGameplay();
 };
@@ -692,58 +692,10 @@ document.getElementById('exit-to-title-btn').onclick = () => {
   persistCurrentHero();
   switchScreen('title');
 };
-// --- Character Sheet UI Logic ---
 
-const charSheetScreen = document.getElementById('character-sheet-screen');
-const inventoryGrid = document.getElementById('inventory-grid');
-let isSheetOpen = false;
-
-// Create 40 empty slots for the inventory bag
-function buildInventoryGrid() {
-  inventoryGrid.innerHTML = '';
-  for (let i = 0; i < 40; i++) {
-    const slot = document.createElement('div');
-    slot.className = 'inv-slot';
-    inventoryGrid.appendChild(slot);
-  }
-}
-
-function toggleCharacterSheet() {
-  // Prevent opening the sheet if the player is currently walking
-  if (isMoving) return; 
-
-  isSheetOpen = !isSheetOpen;
-  
-  if (isSheetOpen) {
-    charSheetScreen.classList.remove('hidden');
-    document.getElementById('sheet-char-name').textContent = currentHero.name;
-    document.getElementById('sheet-char-class').textContent = `Level ${currentHero.level} ${currentHero.class}`;
-    // We will calculate and update stats here later
-  } else {
-    charSheetScreen.classList.add('hidden');
-  }
-}
-
-// Close button event
-document.getElementById('close-sheet-btn').addEventListener('click', toggleCharacterSheet);
-
-// Allow pressing 'I' or 'C' on the keyboard to open the sheet
-document.addEventListener('keydown', (e) => {
-  if (e.key.toLowerCase() === 'i' || e.key.toLowerCase() === 'c') {
-    if (currentHero && currentHero.currentHP > 0) {
-      toggleCharacterSheet();
-    }
-  }
-});
-
-// Call this once when the game loads
-buildInventoryGrid();
 // --- INVENTORY & CHARACTER SHEET SYSTEM ---
 const sheetScreen = document.getElementById('character-sheet-screen');
 let isSheetOpen = false;
-
-// We need to ensure currentHero has an inventory array when created
-// Update your btn-name-confirm click handler to include: inventory: [], inventorySize: 25
 
 function openCharacterSheet() {
   if (isMoving) return;
@@ -753,8 +705,7 @@ function openCharacterSheet() {
   document.getElementById('sheet-char-name').textContent = currentHero.name;
   document.getElementById('sheet-char-class').textContent = `Level ${currentHero.level} ${currentHero.class}`;
   
-  // Ensure hero has inventory array
-  if (!currentHero.inventory) currentHero.inventory = [];
+  if (!currentHero.inventory) currentHero.inventory = new Array(25).fill(null);
   
   adjustAndRenderInventory();
   renderEquipment();
@@ -775,14 +726,29 @@ document.addEventListener('keydown', (e) => {
   }
 });
 
-// --- Dynamic Scaling Grid ---
+// Dynamic Scaling Grid
 function adjustAndRenderInventory() {
   const invGrid = document.getElementById('inventory-grid');
   invGrid.innerHTML = '';
   
-  // Scale grid based on items (If you get a backpack upgrade, this scales to 100 slots)
-  const maxSlots = currentHero.inventory.length > 25 ? 100 : 25;
-  invGrid.className = maxSlots === 100 ? 'inv-grid grid-10x10' : 'inv-grid grid-5x5';
+  let filledSlots = currentHero.inventory.filter(i => i !== null).length;
+  let maxSlots = 25;
+  let gridClass = 'grid-5x5';
+
+  if (currentHero.inventory.length > 25 || filledSlots > 25) {
+    maxSlots = 100;
+    gridClass = 'grid-10x10';
+  }
+  if (currentHero.inventory.length > 100 || filledSlots > 100) {
+    maxSlots = 225;
+    gridClass = 'grid-15x15';
+  }
+
+  while (currentHero.inventory.length < maxSlots) {
+    currentHero.inventory.push(null);
+  }
+
+  invGrid.className = `inv-grid ${gridClass}`;
 
   for (let i = 0; i < maxSlots; i++) {
     const slot = document.createElement('div');
@@ -790,12 +756,10 @@ function adjustAndRenderInventory() {
     slot.setAttribute('ondragover', 'allowDrop(event)');
     slot.setAttribute('ondrop', `dropToInventory(event, ${i})`);
     
-    // If there is an item in this index, render it
     const item = currentHero.inventory[i];
     if (item) {
       slot.appendChild(createItemElement(item, `inv-${i}`));
     }
-    
     invGrid.appendChild(slot);
   }
 }
@@ -804,11 +768,13 @@ function renderEquipment() {
   const slots = ['head', 'chest', 'legs', 'boots', 'mainhand', 'offhand'];
   slots.forEach(slot => {
     const slotElement = document.querySelector(`.equip-slot[data-slot="${slot}"]`);
-    slotElement.innerHTML = slot.charAt(0).toUpperCase() + slot.slice(1); // Reset text
-    
-    if (currentHero.gear[slot]) {
-      slotElement.innerHTML = ''; // Clear text
-      slotElement.appendChild(createItemElement(currentHero.gear[slot], `equip-${slot}`));
+    if(slotElement) {
+        slotElement.innerHTML = slot.charAt(0).toUpperCase() + slot.slice(1);
+        
+        if (currentHero.gear[slot]) {
+          slotElement.innerHTML = ''; 
+          slotElement.appendChild(createItemElement(currentHero.gear[slot], `equip-${slot}`));
+        }
     }
   });
 }
@@ -816,7 +782,7 @@ function renderEquipment() {
 function createItemElement(item, dragId) {
   const el = document.createElement('div');
   el.className = `draggable-item rarity-${item.rarity}`;
-  el.textContent = item.symbol || '🗡️'; // Use a symbol based on item type
+  el.textContent = item.symbol || '🗡️'; 
   el.draggable = true;
   el.id = dragId;
   
@@ -829,16 +795,17 @@ function createItemElement(item, dragId) {
 
   el.addEventListener('mouseenter', () => {
     document.getElementById('item-hover-details').innerHTML = `
-      <h4 style="color: ${getRarityColor(item.rarity)}">${item.name}</h4>
-      <p>Rarity: ${item.rarity.toUpperCase()}</p>
-      <p>Slot: ${item.slot}</p>
-      <hr style="border-color:#443322;">
-      <p>${formatStats(item.stats)}</p>
+      <h4 style="color: ${getRarityColor(item.rarity)}; font-size: 1.1rem; margin-bottom: 5px;">${item.name}</h4>
+      <p style="font-size: 0.8rem; color: #8592a6;">Item ID: #${String(item.id).padStart(3, '0')}</p>
+      <p style="font-size: 0.8rem; color: #8592a6;">Rarity: <span style="color: ${getRarityColor(item.rarity)}; text-transform: uppercase;">${item.rarity}</span></p>
+      <p style="font-size: 0.8rem; color: #8592a6;">Slot: ${item.slot.toUpperCase()}</p>
+      <hr style="border-color:#262d3a; margin: 10px 0;">
+      <p style="font-size: 0.9rem; color: #e7ecf2;">${formatStats(item.stats)}</p>
     `;
   });
   
   el.addEventListener('mouseleave', () => {
-    document.getElementById('item-hover-details').innerHTML = '<p class="placeholder-text">Hover over an item...</p>';
+    document.getElementById('item-hover-details').innerHTML = '<p class="placeholder-text" style="color: #8592a6; font-size: 0.8rem;">Hover over an item to inspect its runes and stats.</p>';
   });
 
   return el;
@@ -854,54 +821,48 @@ function formatStats(stats) {
   return Object.entries(stats).map(([key, val]) => `+${val} ${key.toUpperCase()}`).join('<br>');
 }
 
-// --- Drag & Drop Handlers ---
-function allowDrop(e) {
+// Drag & Drop Handlers
+window.allowDrop = function(e) {
   e.preventDefault();
 }
 
-function dropToEquip(e, targetSlot) {
+window.dropToEquip = function(e, targetSlot) {
   e.preventDefault();
   const data = JSON.parse(e.dataTransfer.getData('text/plain'));
   const item = data.itemData;
 
-  // Check if item fits the slot (2H weapon logic goes here later)
   if (item.slot !== targetSlot && item.slot !== 'anyhand') {
     logEvent(`You cannot equip ${item.name} in the ${targetSlot} slot.`);
     return;
   }
 
-  // Remove from inventory
   if (data.sourceId.includes('inv-')) {
     const invIndex = parseInt(data.sourceId.split('-')[1]);
     currentHero.inventory[invIndex] = null;
   }
 
-  // If something is already equipped, put it in the inventory
   if (currentHero.gear[targetSlot]) {
     const oldItem = currentHero.gear[targetSlot];
     const emptySlot = currentHero.inventory.findIndex(i => i === null || i === undefined);
     if (emptySlot !== -1) currentHero.inventory[emptySlot] = oldItem;
-    else currentHero.inventory.push(oldItem); // Backpack overflow
+    else currentHero.inventory.push(oldItem); 
   }
 
-  // Equip new item
   currentHero.gear[targetSlot] = item;
   
   persistCurrentHero();
-  openCharacterSheet(); // Refresh UI
+  openCharacterSheet(); 
 }
 
-function dropToInventory(e, targetIndex) {
+window.dropToInventory = function(e, targetIndex) {
   e.preventDefault();
   const data = JSON.parse(e.dataTransfer.getData('text/plain'));
   const item = data.itemData;
 
-  // If it came from equipment, clear that slot
   if (data.sourceId.includes('equip-')) {
     const slot = data.sourceId.split('-')[1];
     currentHero.gear[slot] = null;
   } else if (data.sourceId.includes('inv-')) {
-    // Swap inventory slots
     const sourceIndex = parseInt(data.sourceId.split('-')[1]);
     currentHero.inventory[sourceIndex] = currentHero.inventory[targetIndex];
   }
@@ -909,7 +870,24 @@ function dropToInventory(e, targetIndex) {
   currentHero.inventory[targetIndex] = item;
   
   persistCurrentHero();
-  openCharacterSheet(); // Refresh UI
+  openCharacterSheet(); 
+}
+
+window.dropToTrash = function(e) {
+  e.preventDefault();
+  const data = JSON.parse(e.dataTransfer.getData('text/plain'));
+  
+  if (data.sourceId.includes('inv-')) {
+    const invIndex = parseInt(data.sourceId.split('-')[1]);
+    currentHero.inventory[invIndex] = null;
+  } else if (data.sourceId.includes('equip-')) {
+    const slot = data.sourceId.split('-')[1];
+    currentHero.gear[slot] = null;
+  }
+
+  logEvent(`You destroyed the item.`);
+  persistCurrentHero();
+  openCharacterSheet(); 
 }
 
 function calculateStats() {
@@ -923,7 +901,11 @@ function calculateStats() {
     }
   });
 
-  document.getElementById('stat-atk').textContent = atk;
-  document.getElementById('stat-def').textContent = def;
-  document.getElementById('stat-hp').textContent = currentHero.maxHP;
+  const statAtk = document.getElementById('stat-atk');
+  const statDef = document.getElementById('stat-def');
+  const statHp = document.getElementById('stat-hp');
+  
+  if(statAtk) statAtk.textContent = atk;
+  if(statDef) statDef.textContent = def;
+  if(statHp) statHp.textContent = currentHero.maxHP;
 }
