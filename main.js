@@ -1,4 +1,4 @@
-import './src/style.css';
+import './style.css';
 
 /**
  * VIKING JOURNEY - Master Game Engine
