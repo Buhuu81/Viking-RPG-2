@@ -1,3 +1,5 @@
+import './style.css';
+
 /**
  * VIKING JOURNEY - Master Game Engine
  * Featuring: Grid Movement, Time Cycle, Drag-and-Drop Inventory, and Dynamic Scaling
@@ -7,7 +9,7 @@ const STORAGE_ROSTER_KEY = 'viking_journey_roster_v3';
 const STORAGE_CURRENT_HERO_KEY = 'viking_journey_active_hero_id';
 const MAP_WIDTH = 20;
 const MAP_HEIGHT = 20;
-const ASSET_PATH = '/src/assets/pictures/tiles';
+const ASSET_PATH = './src/assets/pictures/tiles';
 
 const createTileSvg = (bg, stroke) =>
   `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="26" height="26"><rect width="26" height="26" fill="${bg}" stroke="${stroke}" stroke-width="2"/></svg>`;
