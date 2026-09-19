@@ -1,4 +1,4 @@
-import './style.css';
+import './src/style.css';
 
 /**
  * VIKING JOURNEY - Master Game Engine
@@ -911,3 +911,68 @@ function calculateStats() {
   if(statDef) statDef.textContent = def;
   if(statHp) statHp.textContent = currentHero.maxHP;
 }
+// --- KEYBOARD MOVEMENT SYSTEM ---
+function moveHero(dx, dy) {
+  // Prevent moving if dead, already moving, or if character sheet is open
+  if (!currentHero || isMoving || currentHero.currentHP <= 0 || isSheetOpen) return;
+
+  const newX = currentHero.pos.x + dx;
+  const newY = currentHero.pos.y + dy;
+
+  // Prevent walking off the edge of the world map
+  if (newX < 0 || newX >= MAP_WIDTH || newY < 0 || newY >= MAP_HEIGHT) {
+    logEvent("The world ends here. You cannot go further.");
+    return;
+  }
+
+  const targetTile = activeMapData[newY][newX];
+
+  // Collision detection (Mountains, Water, Walls)
+  if (!targetTile.type.walkable) {
+    logEvent(`The way is blocked by ${targetTile.type.name}.`);
+    return;
+  }
+
+  // Execute Move
+  currentHero.pos = { x: newX, y: newY };
+  targetTile.visited = true;
+  
+  // 1 step equals 1 hour in the wild
+  advanceTime(1); 
+
+  renderMap();
+  inspectTile(targetTile, true);
+  persistCurrentHero();
+
+  // Check for encounters on the new tile
+  if (targetTile.encounter) {
+    logEvent(`You stumbled upon a ${targetTile.encounter.name}!`);
+  } else if (targetTile.type.action) {
+    logEvent(`You arrived at ${targetTile.type.name}.`);
+  }
+}
+
+// Listen for keyboard presses
+document.addEventListener('keydown', (e) => {
+  // Ignore input if user is typing in the name input field
+  if (document.activeElement.tagName === 'INPUT') return;
+
+  switch(e.key.toLowerCase()) {
+    case 'w':
+    case 'arrowup':
+      moveHero(0, -1);
+      break;
+    case 's':
+    case 'arrowdown':
+      moveHero(0, 1);
+      break;
+    case 'a':
+    case 'arrowleft':
+      moveHero(-1, 0);
+      break;
+    case 'd':
+    case 'arrowright':
+      moveHero(1, 0);
+      break;
+  }
+});
